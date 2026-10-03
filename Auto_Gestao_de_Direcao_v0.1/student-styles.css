@@ -1,0 +1,1855 @@
+/* ══════════════════════════════════════════════════════════════
+   AUTO GESTÃO DE DIREÇÃO — Student Styles (student-styles.css)
+   Portal do Aluno · Simulador Gamificado
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Botão "Área do Aluno" na sidebar do instrutor ── */
+.student-area-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 14px);
+  margin: 8px 7px 10px;
+  padding: 10px 12px;
+  background: linear-gradient(135deg, #1a3d2e 0%, #224a38 100%);
+  border: 1px solid #2e5c42;
+  border-radius: 10px;
+  color: #a8d8b8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  font-family: 'DM Sans', sans-serif;
+}
+.student-area-link:hover {
+  background: linear-gradient(135deg, #1e4a36 0%, #296048 100%);
+  color: #c4ecd4;
+  border-color: #3a7254;
+  transform: translateX(2px);
+}
+.student-area-link--active { border-color: #4de89a; color: #4de89a; }
+.student-area-icon { font-size: 15px; }
+
+/* ── Profile card na sidebar do aluno ── */
+.student-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 24px 7px 16px;
+  padding: 12px;
+  background: #1e342b;
+  border: 1px solid #2a4036;
+  border-radius: 12px;
+}
+.student-avatar-wrap { position: relative; flex-shrink: 0; }
+.student-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4de89a, #176b4b);
+  color: #0a1a10;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 14px;
+  font-family: 'Manrope', sans-serif;
+}
+.student-level-badge {
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  background: #f0c040;
+  color: #1a0e00;
+  font-size: 8px;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 8px;
+  font-family: 'Manrope', sans-serif;
+}
+.student-info b { display: block; font-size: 12px; color: #e4f0e8; }
+.student-info small { font-size: 10px; color: #7a9a84; margin-top: 3px; display: block; }
+
+/* ── XP Bar ── */
+.student-xp-bar {
+  margin: 0 7px 16px;
+  padding: 10px 12px;
+  background: #1a2d22;
+  border: 1px solid #243a2e;
+  border-radius: 10px;
+}
+.xp-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .6px;
+  color: #6a8a74;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.xp-track {
+  height: 5px;
+  background: #243a2e;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.xp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4de89a, #8affcc);
+  border-radius: 8px;
+  transition: width .4s ease;
+}
+.xp-sub { font-size: 8px; color: #5a7a64; margin-top: 5px; }
+
+/* ── Medalhas na sidebar ── */
+.student-medals {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 0 7px 14px;
+  padding: 8px 10px;
+  background: #1a2d22;
+  border-radius: 8px;
+}
+.medal { font-size: 18px; cursor: default; }
+
+/* ── Nav do aluno ── */
+.student-nav { margin-top: 4px; }
+
+/* ══════════════════════════════════════════════
+   TELA DE AUTH (Login / Cadastro)
+   ══════════════════════════════════════════════ */
+.student-auth-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 70vh;
+  padding: 20px;
+}
+.auth-card {
+  background: #fff;
+  border: 1px solid #e0e8e2;
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(20, 50, 30, 0.12);
+  width: min(460px, 100%);
+  padding: 32px 28px 28px;
+  animation: fadeUp .3s ease;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+.auth-logo { text-align: center; margin-bottom: 20px; }
+.auth-logo h2 {
+  font: 700 20px 'Manrope', sans-serif;
+  color: #19251f;
+  margin: 0 0 6px;
+  letter-spacing: -.5px;
+}
+.auth-logo p { font-size: 12px; color: #78837c; margin: 0; }
+
+.auth-tabs {
+  display: flex;
+  gap: 4px;
+  background: #f2f5f2;
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 22px;
+}
+.auth-tab {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  border-radius: 8px;
+  padding: 9px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #78837c;
+  cursor: pointer;
+  transition: all .18s;
+  font-family: 'DM Sans', sans-serif;
+}
+.auth-tab.active {
+  background: #fff;
+  color: #176b4b;
+  box-shadow: 0 2px 6px rgba(20, 50, 30, 0.10);
+}
+
+.auth-form { display: flex; flex-direction: column; gap: 12px; }
+.auth-submit {
+  width: 100%;
+  padding: 13px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 10px;
+  margin-top: 6px;
+}
+.auth-hint { font-size: 10px; color: #8a938d; margin: 4px 0 0; text-align: center; }
+.auth-error {
+  background: #fef0f0;
+  border: 1px solid #f0c0c0;
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 11px;
+  color: #b94a4a;
+}
+
+/* ══════════════════════════════════════════════
+   HOME DO ALUNO — Cards de cenários
+   ══════════════════════════════════════════════ */
+.student-scenario-list {
+  padding: 4px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.scenario-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #eef1ee;
+  border-radius: 10px;
+  transition: all .18s;
+}
+.scenario-card:hover:not(.locked) {
+  background: #f8fcf9;
+  border-color: #d5e8db;
+}
+.scenario-card.done { border-color: #c4e8d0; background: #f5fcf7; }
+.scenario-card.locked { opacity: 0.55; }
+.scenario-icon { font-size: 24px; flex-shrink: 0; }
+.scenario-info { flex: 1; }
+.scenario-info b { display: block; font-size: 12px; font-weight: 600; color: #2d3c32; }
+.scenario-info small { display: block; font-size: 10px; color: #82908a; margin-top: 2px; }
+.scenario-level {
+  display: inline-block;
+  margin-top: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #4a7a5a;
+  background: #e8f4ec;
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+.scenario-status { flex-shrink: 0; }
+
+/* ── Habilidades (skill bars) ── */
+.skill-bars { display: flex; flex-direction: column; gap: 10px; }
+.skill-row { }
+.skill-label-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 600;
+  color: #56645a;
+  margin-bottom: 4px;
+}
+.skill-track {
+  height: 6px;
+  background: #eef1ee;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.skill-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #176b4b, #4de89a);
+  border-radius: 8px;
+  transition: width .5s ease;
+}
+
+/* ── Conquistas ── */
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+.achievement-card {
+  background: #fff;
+  border: 1px solid #e8ece8;
+  border-radius: 14px;
+  padding: 20px 16px;
+  text-align: center;
+  box-shadow: 0 4px 16px rgba(20, 50, 30, 0.05);
+  transition: all .2s;
+}
+.achievement-card.earned {
+  border-color: #c4e8d0;
+  background: linear-gradient(135deg, #f5fcf7, #fff);
+}
+.achievement-card.earned:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(20, 50, 30, 0.10);
+}
+.achievement-card.locked { opacity: .6; }
+.achievement-emoji { font-size: 38px; margin-bottom: 10px; }
+.locked-emoji { filter: grayscale(1); }
+.achievement-name { font: 700 12px 'Manrope', sans-serif; color: #2d3c32; margin-bottom: 5px; }
+.achievement-desc { font-size: 10px; color: #78837c; line-height: 1.5; }
+.achievement-status { margin-top: 10px; font-size: 9px; font-weight: 700; color: #4a9a60; }
+.locked-text { color: #9aa39c; }
+
+/* ══════════════════════════════════════════════
+   SIMULADOR
+   ══════════════════════════════════════════════ */
+.simulator-shell {
+  background: #0d1a13;
+  border: 1px solid #1e3028;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(10, 25, 15, 0.4);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-height: 520px;
+}
+
+/* HUD topo */
+.sim-hud-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #0a1410;
+  border-bottom: 1px solid #1a2d22;
+}
+.sim-scenario-info { display: flex; gap: 8px; align-items: center; }
+.sim-scenario-badge {
+  font: 700 10px 'Manrope', sans-serif;
+  letter-spacing: 1px;
+  color: #4de89a;
+  background: rgba(77, 232, 154, 0.1);
+  border: 1px solid rgba(77, 232, 154, 0.25);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+.sim-mode-badge {
+  font: 700 9px 'Manrope', sans-serif;
+  letter-spacing: .8px;
+  color: #8aadff;
+  background: rgba(100, 150, 255, 0.1);
+  border: 1px solid rgba(100, 150, 255, 0.2);
+  border-radius: 6px;
+  padding: 4px 9px;
+  transition: all .3s;
+}
+.sim-score-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 9px;
+  color: #4a6a54;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+}
+.sim-score-area b { font: 700 16px 'Manrope', sans-serif; color: #f0c040; margin-top: 2px; }
+.sim-controls-top { display: flex; gap: 6px; }
+
+/* ── BARRA DE SELEÇÃO DE CENÁRIOS ── */
+.sim-scenario-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.sim-scen-btn {
+  background: #14261f;
+  border: 1px solid #274435;
+  color: #8bb399;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all .2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.sim-scen-btn:hover {
+  background: #1a3528;
+  color: #c0ebd0;
+  border-color: #3b634d;
+}
+.sim-scen-btn.active {
+  background: linear-gradient(135deg, #176b4b, #219668);
+  border-color: #4de89a;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(23,107,75,0.4);
+}
+
+/* ── HUD DO CENÁRIO DE VIAS (40 a 100 km/h) ── */
+.sim-road-hud {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sim-speed-sign {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 4px solid #d92222;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #111111;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.sim-speed-sign span {
+  font: 800 16px 'Manrope', sans-serif;
+  letter-spacing: -0.5px;
+}
+.sim-speed-sign small {
+  font: 700 7px 'DM Sans', sans-serif;
+  color: #555555;
+  margin-top: 1px;
+}
+
+.sim-road-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sim-road-badge {
+  font: 700 10px 'Manrope', sans-serif;
+  letter-spacing: .7px;
+  color: #5ac8fa;
+  background: rgba(90,200,250,0.12);
+  border: 1px solid rgba(90,200,250,0.25);
+  border-radius: 6px;
+  padding: 3px 8px;
+  width: max-content;
+  text-transform: uppercase;
+}
+.sim-stage-timer-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  color: #78a287;
+}
+.sim-stage-timer-track {
+  width: 75px;
+  height: 4px;
+  background: #142a1e;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.sim-stage-timer-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ffd23c, #4de89a);
+  border-radius: 3px;
+  transition: width .2s linear;
+}
+
+/* Pílula de Status: Sinal Verde vs Alerta de Colisão */
+.sim-status-pill {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all .25s ease;
+}
+.sim-status-pill.green {
+  background: rgba(23,107,75,0.28);
+  border: 1px solid #4de89a;
+  color: #4de89a;
+  box-shadow: 0 0 12px rgba(77,232,154,0.15);
+}
+.sim-status-pill.yellow {
+  background: rgba(240,160,30,0.25);
+  border: 1px solid #ffd23c;
+  color: #ffd23c;
+}
+.sim-status-pill.red {
+  background: rgba(220,40,40,0.35);
+  border: 1px solid #ff4d4d;
+  color: #ffffff;
+  animation: pulseAlarm .6s ease infinite alternate;
+}
+@keyframes pulseAlarm {
+  from { box-shadow: 0 0 6px rgba(255,77,77,0.3); }
+  to   { box-shadow: 0 0 18px rgba(255,77,77,0.8); }
+}
+
+/* Seletor de Modo no HUD */
+.sim-mode-switcher {
+  display: flex;
+  background: #102018;
+  padding: 3px;
+  border-radius: 9px;
+  border: 1px solid #1a3526;
+  gap: 3px;
+}
+.sim-mode-tab {
+  background: transparent;
+  border: none;
+  color: #6a9578;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.sim-mode-tab:hover {
+  color: #b0e0c0;
+  background: rgba(255,255,255,0.04);
+}
+.sim-mode-tab.active {
+  background: linear-gradient(135deg, #176b4b, #1f8a5f);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(23,107,75,0.35);
+}
+
+.sim-btn-sm {
+  border: 1px solid #2a4036;
+  background: #1a2d22;
+  color: #7ab88a;
+  border-radius: 7px;
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .18s;
+  font-family: 'DM Sans', sans-serif;
+}
+.sim-btn-sm:hover { background: #223a2a; color: #a4d4b0; border-color: #3a5848; }
+
+/* ── BARRA DE SELEÇÃO DE CÂMERAS (Mobile-First) ── */
+.sim-view-mode-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #0f1d16;
+  border-bottom: 1px solid #1a2f24;
+  padding: 8px 14px;
+}
+.sim-view-mode-label {
+  font: 700 10px 'Manrope', sans-serif;
+  letter-spacing: .8px;
+  color: #5d826c;
+  text-transform: uppercase;
+}
+.sim-view-mode-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.sim-view-btn {
+  background: #172a20;
+  border: 1px solid #234030;
+  color: #7da58c;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.sim-view-btn:hover {
+  background: #1f372a;
+  color: #aae0be;
+  border-color: #315843;
+}
+.sim-view-btn.active {
+  background: #1a4d36;
+  border-color: #4de89a;
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(77,232,154,0.2);
+}
+
+/* Views & Dynamic Layouts */
+.sim-views {
+  display: grid;
+  gap: 0;
+  flex: 1;
+  min-height: 380px;
+  transition: all .25s ease;
+}
+
+/* MODO 1: TOP VIEW PRIORITÁRIA (Padrão no Mobile - Tela Cheia) */
+.sim-views.layout-top {
+  grid-template-columns: 1fr;
+}
+.sim-views.layout-top .sim-view-top {
+  display: block;
+  min-height: 480px;
+  height: 100%;
+}
+.sim-views.layout-top .sim-view-driver {
+  display: none !important;
+}
+
+/* MODO 2: AMBAS AS VISÕES (Dual) */
+.sim-views.layout-both {
+  grid-template-columns: 1.25fr 1fr;
+  min-height: 420px;
+}
+.sim-views.layout-both .sim-view-top {
+  display: block;
+  min-height: 380px;
+}
+.sim-views.layout-both .sim-view-driver {
+  display: block;
+  border-right: 1px solid #1a2d22;
+  min-height: 380px;
+}
+
+/* MODO 3: VISÃO DO CONDUTOR COM MINIMAPA */
+.sim-views.layout-driver {
+  display: flex;
+  flex-direction: column;
+  min-height: 520px;
+}
+.sim-views.layout-driver .sim-view-driver {
+  display: block;
+  flex: 1.6;
+  min-height: 320px;
+  border-right: none;
+  border-bottom: 2px solid #1a2d22;
+}
+.sim-views.layout-driver .sim-view-top {
+  display: block;
+  flex: 1;
+  min-height: 220px;
+}
+
+.sim-view-driver, .sim-view-top {
+  position: relative;
+  overflow: hidden;
+  background: #0d1a13;
+}
+.sim-view-driver canvas, .sim-view-top canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none; /* Desabilita scroll da tela no toque para arrastar/desenhar com o dedo */
+}
+.sim-view-label {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  font: 700 8px 'Manrope', sans-serif;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.45);
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: 2;
+  background: rgba(10,20,15,0.6);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Retrovisores laterais */
+.sim-mirrors {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+.sim-mirror {
+  position: absolute;
+  bottom: 8px;
+  border: 1px solid #2a4036;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #0a1410;
+}
+.sim-mirror.left { left: 10px; width: 100px; height: 60px; }
+.sim-mirror.right { right: 10px; width: 100px; height: 60px; }
+.sim-mirror.center {
+  top: 10px;
+  bottom: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 140px;
+  height: 48px;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+  border: 1px solid rgba(77, 232, 154, 0.3);
+}
+.sim-mirror canvas { width: 100%; height: 100%; display: block; }
+
+/* Painel de instrução */
+.sim-instruction-panel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #0e1e16;
+  border-top: 1px solid #1a2d22;
+  min-height: 48px;
+}
+.sim-inst-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.sim-inst-text { font-size: 12px; color: #a8c8b2; line-height: 1.55; flex: 1; }
+.sim-inst-text b { color: #4de89a; }
+
+/* Ações Dinâmicas do Painel de Instrução */
+.sim-inst-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.sim-act-btn {
+  font-size: 11px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.sim-act-btn.primary {
+  background: linear-gradient(135deg, #176b4b, #25a26c);
+  color: #ffffff;
+  border: 1px solid #4de89a;
+  box-shadow: 0 0 12px rgba(77,232,154,0.35);
+  animation: pulseButton 2s infinite ease-in-out;
+}
+.sim-act-btn.primary:hover {
+  background: linear-gradient(135deg, #1e855c, #2ec484);
+  box-shadow: 0 0 18px rgba(77,232,154,0.6);
+}
+@keyframes pulseButton {
+  0%, 100% { box-shadow: 0 0 10px rgba(77,232,154,0.25); }
+  50% { box-shadow: 0 0 20px rgba(77,232,154,0.65); }
+}
+
+/* Cursores interativos do Top View */
+.sim-view-top.cursor-grab canvas { cursor: grab; }
+.sim-view-top.cursor-grabbing canvas { cursor: grabbing; }
+.sim-view-top.cursor-draw canvas { cursor: crosshair; }
+
+/* Controles */
+.sim-controls-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px;
+  background: #0a1410;
+  border-top: 1px solid #1a2d22;
+  flex-wrap: wrap;
+}
+.sim-ctrl-label {
+  font: 700 8px 'Manrope', sans-serif;
+  letter-spacing: 1px;
+  color: #3a5848;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+/* Volante */
+.sim-steering-wrap { display: flex; flex-direction: column; align-items: center; }
+.sim-steering {
+  width: 90px;
+  height: 90px;
+  cursor: grab;
+  user-select: none;
+}
+.sim-steering:active { cursor: grabbing; }
+.sim-steering-angle {
+  font: 700 11px 'Manrope', sans-serif;
+  color: #4de89a;
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* Marcha */
+.sim-gear-wrap { display: flex; flex-direction: column; align-items: center; }
+.sim-gear-selector { display: flex; flex-direction: column; gap: 4px; }
+.sim-gear-btn {
+  width: 38px;
+  height: 32px;
+  border: 1px solid #2a4036;
+  background: #1a2d22;
+  color: #5a7a64;
+  border-radius: 7px;
+  font: 700 13px 'Manrope', sans-serif;
+  cursor: pointer;
+  transition: all .15s;
+}
+.sim-gear-btn:hover { background: #223a2a; color: #9abca6; }
+.sim-gear-btn.active {
+  background: linear-gradient(135deg, #176b4b, #1e8a5e);
+  color: #d4f5e0;
+  border-color: #4de89a;
+  box-shadow: 0 0 10px rgba(77,232,154,0.2);
+}
+
+/* Setas (Sinalização para Mudança de Faixa) */
+.sim-signals-wrap { display: flex; flex-direction: column; align-items: center; }
+.sim-signal-btns { display: flex; gap: 6px; }
+.sim-signal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 12px;
+  height: 34px;
+  border: 1px solid #2a4036;
+  background: #14221a;
+  color: #7a9c86;
+  border-radius: 7px;
+  font: 700 11px 'Manrope', sans-serif;
+  cursor: pointer;
+  transition: all .15s;
+}
+.sim-signal-btn:hover {
+  background: #1b2e22;
+  color: #a8d5b8;
+  border-color: #3b5c47;
+}
+.sim-signal-btn.active {
+  background: linear-gradient(135deg, #784805, #e67e22);
+  color: #fff8e7;
+  border-color: #f39c12;
+  box-shadow: 0 0 12px rgba(243, 156, 18, 0.45);
+  animation: blinkSignal 0.75s infinite steps(1, start);
+}
+@keyframes blinkSignal {
+  0%, 100% { opacity: 1; filter: brightness(1.2); }
+  50% { opacity: 0.5; filter: brightness(0.8); }
+}
+.sim-signal-icon { font-size: 13px; font-weight: bold; }
+.sim-signal-status {
+  font: 700 9px 'Manrope', sans-serif;
+  color: #4a6c58;
+  margin-top: 5px;
+  text-align: center;
+}
+.sim-signal-status.active-left,
+.sim-signal-status.active-right {
+  color: #f39c12;
+}
+
+/* Pedais */
+.sim-pedals { display: flex; flex-direction: column; align-items: center; }
+.sim-speed-display {
+  font: 700 14px 'Manrope', sans-serif;
+  color: #4de89a;
+  margin-bottom: 6px;
+}
+.sim-pedal-btns { display: flex; gap: 5px; }
+.sim-pedal-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid #2a4036;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all .1s;
+  display: grid;
+  place-items: center;
+  user-select: none;
+}
+.sim-pedal-btn.accel {
+  background: #1a3d2a;
+  color: #4de89a;
+  border-color: #2a5a3a;
+}
+.sim-pedal-btn.accel:active, .sim-pedal-btn.accel:hover {
+  background: #1e4a32;
+  box-shadow: 0 0 12px rgba(77,232,154,0.2);
+}
+.sim-pedal-btn.brake {
+  background: #3d1a1a;
+  color: #e07070;
+  border-color: #5a2a2a;
+}
+.sim-pedal-btn.brake:active, .sim-pedal-btn.brake:hover {
+  background: #4a2020;
+  box-shadow: 0 0 12px rgba(220,80,80,0.2);
+}
+
+/* Distâncias */
+.sim-distances { display: flex; flex-direction: column; }
+.sim-dist-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+.sim-dist-item {
+  background: #1a2d22;
+  border: 1px solid #2a3e30;
+  border-radius: 7px;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #4de89a;
+  font-family: 'Manrope', sans-serif;
+  font-weight: 700;
+  min-width: 70px;
+}
+.dist-dir { font-size: 12px; color: #3a5848; }
+
+.sim-action-wrap { margin-left: auto; }
+.sim-next-btn, .sim-finish-btn { font-size: 12px; padding: 10px 16px; }
+
+[hidden] {
+  display: none !important;
+}
+
+/* ── Overlay de resultado ── */
+.sim-result-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 16, 11, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  animation: fadeIn .3s ease;
+  backdrop-filter: blur(4px);
+}
+.sim-result-overlay[hidden] {
+  display: none !important;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.sim-result-card {
+  background: linear-gradient(135deg, #0e1e16, #1a3028);
+  border: 1px solid #2a5040;
+  border-radius: 20px;
+  padding: 32px 28px;
+  max-width: 380px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  animation: popUp .3s cubic-bezier(.2,1,.5,1);
+}
+@keyframes popUp {
+  from { opacity: 0; transform: scale(.9); }
+  to   { opacity: 1; transform: none; }
+}
+.sim-result-title {
+  font: 700 18px 'Manrope', sans-serif;
+  color: #e4f0e8;
+  margin-bottom: 6px;
+}
+.sim-result-score {
+  font: 700 48px 'Manrope', sans-serif;
+  color: #f0c040;
+  letter-spacing: -2px;
+  margin: 12px 0 18px;
+}
+.sim-result-detail { margin-bottom: 20px; }
+.sim-result-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+  font-size: 10px;
+  color: #7a9a84;
+}
+.sim-result-row > span:first-child { min-width: 130px; text-align: left; }
+.sim-result-row > span:last-child { min-width: 36px; text-align: right; font-weight: 700; color: #a4d4b4; }
+.sim-result-bar-wrap { flex: 1; height: 5px; background: #1a3028; border-radius: 4px; overflow: hidden; }
+.sim-result-bar { height: 100%; background: linear-gradient(90deg, #176b4b, #4de89a); border-radius: 4px; transition: width .5s ease; }
+.sim-result-actions { display: flex; gap: 10px; justify-content: center; }
+.sim-result-actions .btn { font-size: 11px; padding: 10px 16px; }
+.sim-result-actions .btn:not(.primary) {
+  background: transparent;
+  border-color: #2a5040;
+  color: #7a9a84;
+}
+.sim-result-actions .btn:not(.primary):hover { border-color: #4de89a; color: #4de89a; }
+
+/* ══════════════════════════════════════════════
+   RESPONSIVIDADE DO SIMULADOR
+   ══════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════
+   RESPONSIVIDADE COMPLETA DO SIMULADOR & PORTAL
+   ══════════════════════════════════════════════ */
+@media (max-width: 860px) {
+  .sim-hud-top {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .sim-mode-switcher {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    padding: 4px;
+    justify-content: flex-start;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sim-mode-tab {
+    padding: 6px 10px;
+    font-size: 10px;
+  }
+  .sim-score-area {
+    margin-left: auto;
+  }
+  .sim-controls-top {
+    gap: 5px;
+  }
+  .sim-view-mode-bar {
+    padding: 6px 10px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .sim-view-btn {
+    font-size: 10px;
+    padding: 4px 9px;
+  }
+  .sim-views.layout-both {
+    grid-template-columns: 1fr;
+  }
+  .sim-views.layout-both .sim-view-top {
+    min-height: 320px;
+    order: 1;
+    border-bottom: 2px solid #1a2d22;
+  }
+  .sim-views.layout-both .sim-view-driver {
+    min-height: 220px;
+    order: 2;
+    border-right: none;
+  }
+  .sim-controls-bar {
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: space-around;
+    padding: 12px 10px;
+  }
+  .sim-instruction-panel {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+  }
+  .sim-inst-actions {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .sim-act-btn {
+    flex: 1;
+    min-width: 120px;
+    text-align: center;
+    padding: 8px 10px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 600px) {
+  .achievements-grid { grid-template-columns: 1fr 1fr; }
+  .sim-views.layout-top .sim-view-top { min-height: 380px; }
+  .sim-steering { width: 68px; height: 68px; }
+  .sim-gear-selector { gap: 3px; }
+  .sim-gear-btn { width: 34px; height: 34px; font-size: 12px; }
+  .sim-pedal-btns { gap: 6px; }
+  .sim-pedal-btn { width: 38px; height: 38px; font-size: 13px; }
+  .student-profile-card { margin-top: 14px; padding: 12px; }
+  .auth-card { padding: 20px 16px 18px; }
+  .sim-result-card { padding: 22px 16px; margin: 12px; }
+  .sim-result-score { font-size: 38px; margin: 8px 0 14px; }
+}
+
+/* ══════════════════════════════════════════════
+   MICRO-ANIMAÇÕES
+   ══════════════════════════════════════════════ */
+.nav-item { transition: background .18s, color .18s, transform .12s; }
+.nav-item:hover:not(.active) { transform: translateX(3px); }
+
+.scenario-card { transition: all .2s ease; }
+.achievement-card.earned { animation: earnedPulse 2s ease-in-out infinite; }
+@keyframes earnedPulse {
+  0%, 100% { box-shadow: 0 4px 16px rgba(77,232,154,0.05); }
+  50% { box-shadow: 0 4px 24px rgba(77,232,154,0.15); }
+}
+
+.skill-fill { animation: growBar .6s ease forwards; }
+@keyframes growBar { from { width: 0; } }
+
+/* Typing effect na instrução */
+.sim-inst-text { transition: opacity .2s ease; }
+
+/* ══════════════════════════════════════════════
+   DARK PIXEL CINEMATIC & CTB LAW ENFORCEMENT HUD
+   ══════════════════════════════════════════════ */
+
+.sim-ctb-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: linear-gradient(180deg, #0b1020 0%, #070912 100%);
+  border: 1px solid #1a273e;
+  border-radius: 12px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  flex-wrap: wrap;
+}
+
+.sim-cnh-status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 190px;
+}
+
+.sim-cnh-label, .sim-fines-label {
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: #7a8fa6;
+}
+
+.sim-cnh-meter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sim-cnh-pts {
+  font-family: 'Manrope', monospace;
+  font-size: 13px;
+  font-weight: 800;
+  color: #e2e8f0;
+}
+
+.sim-cnh-track {
+  width: 70px;
+  height: 6px;
+  background: #141b2d;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid #23314d;
+}
+
+.sim-cnh-fill {
+  height: 100%;
+  background: #4de89a;
+  border-radius: 999px;
+  transition: width 0.4s ease, background 0.3s;
+}
+
+.sim-cnh-badge {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.4px;
+}
+.sim-cnh-badge.regular { background: rgba(77, 232, 154, 0.15); color: #4de89a; border: 1px solid rgba(77, 232, 154, 0.35); }
+.sim-cnh-badge.warning { background: rgba(241, 196, 15, 0.18); color: #f1c40f; border: 1px solid rgba(241, 196, 15, 0.45); }
+.sim-cnh-badge.danger  { background: rgba(231, 76, 60, 0.22); color: #ff6b6b; border: 1px solid rgba(231, 76, 60, 0.5); }
+.sim-cnh-badge.suspended { background: #e74c3c; color: #ffffff; animation: blinkSuspended 1s infinite alternate; }
+
+@keyframes blinkSuspended {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0.75; transform: scale(1.04); }
+}
+
+.sim-fines-total {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 14px;
+  border-left: 1px solid #1a273e;
+}
+
+.sim-fines-val {
+  font-family: 'Manrope', monospace;
+  font-size: 14px;
+  font-weight: 800;
+  color: #ffaa33;
+  text-shadow: 0 0 10px rgba(255, 170, 51, 0.35);
+}
+
+.sim-officer-widget {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: rgba(16, 24, 39, 0.7);
+  border: 1px solid #23314d;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.sim-officer-widget:hover {
+  background: rgba(26, 39, 62, 0.85);
+  border-color: #3b82f6;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.25);
+}
+
+.sim-officer-avatar {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.sim-officer-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.sim-officer-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: #93c5fd;
+}
+
+.sim-officer-status {
+  font-size: 8.5px;
+  color: #4de89a;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sim-pulse-dot {
+  width: 5px;
+  height: 5px;
+  background: #4de89a;
+  border-radius: 50%;
+  animation: pulseDot 1.4s infinite;
+}
+@keyframes pulseDot {
+  0% { transform: scale(0.9); opacity: 0.5; }
+  50% { transform: scale(1.4); opacity: 1; box-shadow: 0 0 6px #4de89a; }
+  100% { transform: scale(0.9); opacity: 0.5; }
+}
+
+.sim-ait-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #182234;
+  color: #e2e8f0;
+  border: 1px solid #2c3e5d;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.sim-ait-btn:hover {
+  background: #23314d;
+  border-color: #ffaa33;
+  color: #ffaa33;
+  box-shadow: 0 0 12px rgba(255, 170, 51, 0.2);
+}
+
+.sim-ait-badge {
+  background: #e74c3c;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+/* ══════════════════════════════════════════════
+   ALERTA DO AGENTE DE TRÂNSITO (POLICIAL LEGISLATIVO)
+   ══════════════════════════════════════════════ */
+
+.sim-officer-dialog {
+  background: linear-gradient(135deg, #080c14 0%, #101827 100%);
+  border: 2px solid #ffaa33;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 0 24px rgba(255, 170, 51, 0.25), 0 8px 30px rgba(0,0,0,0.8);
+  animation: officerSlideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes officerSlideDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.sim-officer-dialog-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.sim-officer-big-avatar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.sim-officer-sprite {
+  font-size: 32px;
+  line-height: 1;
+  background: #182234;
+  border: 1px solid #33486a;
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.sim-police-lights {
+  display: flex;
+  gap: 4px;
+}
+
+.p-light {
+  width: 8px;
+  height: 5px;
+  border-radius: 2px;
+}
+.p-light.blue { background: #00f2fe; animation: blinkBlue 0.4s infinite alternate; }
+.p-light.red  { background: #ff2222; animation: blinkRed 0.4s infinite alternate 0.2s; }
+
+@keyframes blinkBlue {
+  from { opacity: 0.3; } to { opacity: 1; box-shadow: 0 0 8px #00f2fe; }
+}
+@keyframes blinkRed {
+  from { opacity: 0.3; } to { opacity: 1; box-shadow: 0 0 8px #ff2222; }
+}
+
+.sim-officer-speech {
+  flex: 1;
+}
+
+.sim-officer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.sim-officer-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: #ffaa33;
+}
+
+.sim-officer-time {
+  font-size: 9px;
+  color: #64748b;
+}
+
+.sim-officer-msg {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: #f1f5f9;
+  margin-bottom: 6px;
+}
+
+.sim-officer-fine-card {
+  background: rgba(231, 76, 60, 0.15);
+  border: 1px solid rgba(231, 76, 60, 0.35);
+  border-radius: 6px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sim-fine-art {
+  font-weight: 800;
+  font-size: 11px;
+  color: #ff6b6b;
+}
+
+.sim-fine-data {
+  font-size: 10.5px;
+  color: #cbd5e1;
+}
+
+.sim-officer-close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.15s;
+}
+.sim-officer-close-btn:hover {
+  color: #ffffff;
+}
+
+/* ══════════════════════════════════════════════
+   MODAL DE AITs (AUTOS DE INFRAÇÃO DE TRÂNSITO)
+   ══════════════════════════════════════════════ */
+
+.sim-ait-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 7, 13, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.sim-ait-modal-card {
+  background: #090e1a;
+  border: 1px solid #1e2c45;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 600px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.9), 0 0 30px rgba(0, 242, 254, 0.1);
+  overflow: hidden;
+  animation: modalPop 0.25s ease-out;
+}
+
+@keyframes modalPop {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.sim-ait-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #192336;
+}
+
+.sim-ait-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sim-ait-modal-icon { font-size: 26px; }
+.sim-ait-modal-title h3 { margin: 0; font-size: 16px; color: #f8fafc; font-weight: 800; }
+.sim-ait-modal-title p { margin: 2px 0 0; font-size: 11px; color: #64748b; }
+
+.sim-ait-modal-close {
+  background: #151e2e;
+  border: 1px solid #273752;
+  color: #94a3b8;
+  font-size: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.sim-ait-modal-close:hover { background: #23314d; color: #fff; }
+
+.sim-ait-modal-summary {
+  display: flex;
+  gap: 12px;
+  padding: 14px 20px;
+  background: #0f1624;
+  border-bottom: 1px solid #192336;
+}
+
+.sim-ait-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: #141c2c;
+  border: 1px solid #212c42;
+  border-radius: 8px;
+}
+
+.sim-ait-stat .stat-lbl { font-size: 8.5px; font-weight: 800; color: #64748b; letter-spacing: 0.5px; }
+.sim-ait-stat .stat-val { font-size: 15px; font-weight: 800; color: #e2e8f0; font-family: 'Manrope', monospace; }
+.sim-ait-stat .stat-val.red { color: #ffaa33; }
+.sim-ait-stat .stat-val.green { color: #4de89a; }
+
+.sim-ait-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 180px;
+}
+
+.sim-ait-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 16px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.sim-ait-item {
+  background: #0e1522;
+  border-left: 4px solid #ff6b6b;
+  border: 1px solid #1a273e;
+  border-left-width: 4px;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sim-ait-item.gravissima { border-left-color: #ff2222; }
+.sim-ait-item.grave      { border-left-color: #ff6b6b; }
+.sim-ait-item.media      { border-left-color: #f1c40f; }
+.sim-ait-item.leve       { border-left-color: #4de89a; }
+
+.sim-ait-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.sim-ait-item-art { font-size: 12px; font-weight: 800; color: #f8fafc; }
+.sim-ait-item-time { font-size: 9px; color: #64748b; font-family: monospace; }
+.sim-ait-item-desc { font-size: 11px; color: #94a3b8; line-height: 1.4; }
+.sim-ait-item-footer {
+  display: flex;
+  gap: 10px;
+  font-size: 10px;
+  color: #cbd5e1;
+  margin-top: 2px;
+}
+
+.sim-ait-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-top: 1px solid #192336;
+  background: #0b101c;
+}
+
+/* Responsividade Mobile da Barra CTB */
+@media (max-width: 768px) {
+  .sim-ctb-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+  .sim-fines-total {
+    border-left: none;
+    border-top: 1px solid #1a273e;
+    padding: 8px 0 0;
+  }
+  .sim-ait-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .sim-officer-dialog {
+    padding: 10px 12px;
+  }
+  .sim-officer-msg {
+    font-size: 11.5px;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   PAINEL DE SITUAÇÕES E VIAS COTIDIANAS CTB
+   ══════════════════════════════════════════════ */
+
+.sim-situation-panel {
+  background: linear-gradient(180deg, #0d1527 0%, #070b14 100%);
+  border: 1px solid #1e2c47;
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.55);
+}
+
+.sim-sit-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.sim-sit-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sim-sit-title {
+  font-family: 'Manrope', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sim-sit-subtitle {
+  font-size: 9.5px;
+  color: #94a3b8;
+}
+
+.sim-sit-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sim-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.sim-trigger-btn:active {
+  transform: scale(0.96);
+}
+
+.sim-trigger-btn.red {
+  background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%);
+  color: #ffffff;
+  border-color: #ef4444;
+  box-shadow: 0 2px 10px rgba(220, 38, 38, 0.4);
+}
+.sim-trigger-btn.red:hover {
+  background: #ef4444;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.6);
+}
+
+.sim-trigger-btn.blue {
+  background: linear-gradient(180deg, #0284c7 0%, #0369a1 100%);
+  color: #ffffff;
+  border-color: #38bdf8;
+  box-shadow: 0 2px 10px rgba(2, 132, 199, 0.4);
+}
+.sim-trigger-btn.blue:hover {
+  background: #0284c7;
+  box-shadow: 0 4px 16px rgba(56, 189, 248, 0.6);
+}
+
+.sim-trigger-btn.emerald {
+  background: linear-gradient(180deg, #059669 0%, #065f46 100%);
+  color: #ffffff;
+  border-color: #34d399;
+  box-shadow: 0 2px 10px rgba(5, 150, 105, 0.4);
+}
+.sim-trigger-btn.emerald:hover {
+  background: #10b981;
+  box-shadow: 0 4px 16px rgba(52, 211, 153, 0.6);
+}
+
+.sim-trigger-btn.amber {
+  background: linear-gradient(180deg, #d97706 0%, #b45309 100%);
+  color: #ffffff;
+  border-color: #fbbf24;
+  box-shadow: 0 2px 10px rgba(217, 119, 6, 0.4);
+}
+.sim-trigger-btn.amber:hover {
+  background: #f59e0b;
+  box-shadow: 0 4px 16px rgba(251, 191, 36, 0.6);
+}
+
+.sim-sit-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sim-sit-pill {
+  flex: 1;
+  min-width: 140px;
+  padding: 8px 10px;
+  background: #090e1a;
+  border: 1px solid #1c2b44;
+  border-radius: 8px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.sim-sit-pill:hover {
+  background: #111a2e;
+  border-color: #2b4066;
+  color: #f1f5f9;
+}
+
+.sim-sit-pill.active {
+  background: linear-gradient(180deg, #13273e 0%, #0c1828 100%);
+  border-color: #38bdf8;
+  color: #38bdf8;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
+}
+
+@media (max-width: 768px) {
+  .sim-situation-panel {
+    padding: 10px 12px;
+  }
+  .sim-sit-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .sim-sit-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .sim-trigger-btn {
+    flex: 1;
+    justify-content: center;
+    font-size: 10px;
+    padding: 6px 8px;
+  }
+  .sim-sit-pills {
+    justify-content: flex-start;
+  }
+  .sim-sit-pill {
+    min-width: 125px;
+    font-size: 10px;
+    padding: 6px 8px;
+  }
+}
+
+/* ══════════════════════════════════════════════
+   MODAL DE ACIDENTE FATAL (TREM / VIDAS PERDIDAS)
+   ══════════════════════════════════════════════ */
+.sim-fatal-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(10, 0, 0, 0.88);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fatalFadeIn 0.3s ease-out;
+}
+
+@keyframes fatalFadeIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.sim-fatal-box {
+  background: linear-gradient(180deg, #2a0505 0%, #150202 100%);
+  border: 2px solid #ef4444;
+  border-radius: 14px;
+  max-width: 520px;
+  width: 100%;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 0 40px rgba(239, 68, 68, 0.55), 0 20px 40px rgba(0, 0, 0, 0.9);
+  animation: fatalPulse 1.2s infinite alternate;
+}
+
+@keyframes fatalPulse {
+  from { border-color: #ef4444; box-shadow: 0 0 25px rgba(239, 68, 68, 0.45); }
+  to { border-color: #f87171; box-shadow: 0 0 55px rgba(239, 68, 68, 0.75); }
+}
+
+.sim-fatal-badge {
+  display: inline-block;
+  background: #dc2626;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 1px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
+
+.sim-fatal-title {
+  color: #fef08a;
+  font-size: 20px;
+  font-weight: 900;
+  margin: 0 0 12px;
+  text-shadow: 0 0 12px rgba(254, 240, 138, 0.5);
+}
+
+.sim-fatal-text {
+  color: #fecaca;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+
+.sim-fatal-ctb {
+  background: rgba(0, 0, 0, 0.5);
+  border-left: 3px solid #ef4444;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 11px;
+  color: #fca5a5;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.sim-fatal-timer {
+  font-size: 12px;
+  color: #fde047;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.sim-fatal-btn {
+  background: linear-gradient(180deg, #dc2626 0%, #991b1b 100%);
+  color: #ffffff;
+  border: 1px solid #f87171;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.sim-fatal-btn:hover {
+  background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%);
+  transform: translateY(-1px);
+}

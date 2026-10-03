@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#14261f">
+  <meta name="description" content="Auto Gestão de Direção — Plataforma de gestão para instrutores e autoescolas, com portal do aluno e simulador de direção gamificado.">
+  <title>Auto Gestão de Direção</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="student-styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <!-- SIDEBAR — conteúdo injetado pelo JS dependendo do modo (instrutor vs aluno) -->
+    <aside class="sidebar" id="sidebar">
+      <!-- Modo INSTRUTOR (padrão) -->
+      <div id="instructorSidebar">
+        <a class="brand" href="#inicio"><span class="brand-mark">AG</span><span><b>auto gestão</b><small>de direção</small></span></a>
+        <div class="org-picker"><label for="orgSelect">ORGANIZAÇÃO ATIVA</label><select id="orgSelect"></select></div>
+        <nav class="nav-list" aria-label="Navegação principal">
+          <button class="nav-item active" data-view="inicio"><span>◫</span> Visão geral</button>
+          <button class="nav-item" data-view="agenda"><span>▦</span> Agenda <em id="navTodayCount">3</em></button>
+          <button class="nav-item" data-view="alunos"><span>◎</span> Alunos</button>
+          <button class="nav-item" data-view="veiculos"><span>▱</span> Veículos</button>
+          <button class="nav-item" data-view="financeiro"><span>◉</span> Financeiro</button>
+          <button class="nav-item" data-view="relatorios"><span>▥</span> Relatórios</button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="user-chip">
+            <div class="avatar">CD</div>
+            <span><b>Cássio Diniz</b><small>Administrador</small></span>
+            <span class="dots">···</span>
+          </div>
+          <!-- Link para área do aluno -->
+          <button class="student-area-link" id="openStudentAreaBtn">
+            <span class="student-area-icon">◉</span>
+            Área do Aluno
+          </button>
+          <div class="version">AMBIENTE DE DEMONSTRAÇÃO <span>v0.1</span></div>
+        </div>
+      </div>
+
+      <!-- Modo ALUNO (oculto, injetado via JS) -->
+      <div id="studentSidebar" hidden></div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <button id="menuToggle" class="icon-btn mobile-menu" aria-label="Abrir menu">☰</button>
+        <div class="breadcrumb">
+          <span id="modeLabel">Operação</span>
+          <span>/</span>
+          <b id="crumb">Visão geral</b>
+        </div>
+        <div class="top-actions">
+          <div class="demo-pill"><i></i> Dados fictícios</div>
+          <button id="todayBtn" class="icon-btn" aria-label="Ir para hoje">◷</button>
+          <button class="help-btn" id="aboutBtn">Como funciona</button>
+        </div>
+      </header>
+      <div class="prototype-banner"><span>ⓘ</span><div><b>Protótipo local · sem integração oficial</b><small>Informações salvas apenas neste navegador. Aulas finalizadas aqui não são enviadas ao Detran, RENACH ou SENATRAN.</small></div><button id="dismissBanner" aria-label="Fechar aviso">×</button></div>
+      <section class="content" id="appContent"></section>
+    </main>
+  </div>
+  <div id="modalRoot"></div>
+  <div id="toastRoot" class="toast-root" aria-live="polite"></div>
+
+  <!-- Scripts — ordem importa -->
+  <script src="domain.js?v=2.8"></script>
+  <script src="student-auth.js?v=2.8"></script>
+  <script src="student-portal.js?v=2.8"></script>
+  <script src="simulator-engine.js?v=2.8"></script>
+  <script src="app.js?v=2.8"></script>
+  <script src="student-app.js?v=2.8"></script>
+</body>
+</html>

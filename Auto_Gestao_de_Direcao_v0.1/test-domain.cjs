@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict');
+require('./domain.js');
+const {hasConflict,balance,recordPayment,consumePackage,byOrganization}=globalThis.AGD;
+const base={org:'org-1',student:'aluno-1',instructor:'instrutor-1',vehicle:'carro-1',start:'2026-09-26T09:00:00-03:00',end:'2026-09-26T10:00:00-03:00',status:'AGENDADA'};
+assert.equal(hasConflict([base],{...base,start:'2026-09-26T09:30:00-03:00',end:'2026-09-26T10:30:00-03:00'}),true,'deve bloquear sobreposição do mesmo recurso');
+assert.equal(hasConflict([base],{...base,start:'2026-09-26T10:00:00-03:00',end:'2026-09-26T11:00:00-03:00'}),false,'intervalo adjacente deve ser aceito');
+assert.equal(hasConflict([base],{...base,student:'aluno-2',instructor:'instrutor-2',vehicle:'carro-2'}),false,'recursos diferentes podem usar o mesmo horário');
+assert.equal(hasConflict([base],{...base,org:'org-2'}),false,'agenda de outro tenant não conflita');
+assert.equal(hasConflict([{...base,status:'CANCELADA'}],base),false,'aula cancelada não bloqueia horário');
+const receivable={id:'r1',org:'org-1',value:30000};const payments=[];
+assert.equal(recordPayment(receivable,payments,{org:'org-1',value:10000}),20000,'pagamento parcial reduz o saldo');
+assert.equal(recordPayment(receivable,payments,{org:'org-1',value:20000}),0,'segunda parcela quita a conta');
+assert.throws(()=>recordPayment(receivable,payments,{org:'org-1',value:1}),/saldo/,'não pode receber além do saldo');
+assert.throws(()=>recordPayment(receivable,[],{org:'org-2',value:1000}),/Organização/,'pagamento não atravessa tenant');
+const pack={balance:2,consumptions:0};assert.equal(consumePackage(pack),1);assert.equal(pack.consumptions,1);assert.throws(()=>consumePackage({balance:0}),/sem aulas/);
+assert.deepEqual(byOrganization([{org:'org-1',id:1},{org:'org-2',id:2}],'org-2'),[{org:'org-2',id:2}]);
+console.log('OK: agenda/conflito, estados cancelados, isolamento, parcelas, limite de recebimento e consumo de pacote.');
