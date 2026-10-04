@@ -560,8 +560,16 @@
             <b id="simScore">—</b>
           </div>
           <div class="sim-controls-top">
-            <button class="sim-btn-sm" id="simDemoBtn">▶ Demo</button>
-            <button class="sim-btn-sm" id="simResetBtn">↺ Reiniciar</button>
+            <div class="sim-drive-mode-group" id="simDriveModeGroup">
+              <button class="sim-drive-mode-btn active" id="simBtnDriveUser" data-drive-mode="manual" title="Você assume o controle dos pedais e volante">
+                🚗 Conduzir
+              </button>
+              <button class="sim-drive-mode-btn" id="simBtnDriveDemo" data-drive-mode="demo" title="A IA assume a direção respeitando 100% das leis e ritos do CTB">
+                🤖 Demo (IA)
+              </button>
+            </div>
+            <button class="sim-btn-sm" id="simDemoBtn" style="display:none">▶ Demo</button>
+            <button class="sim-btn-sm" id="simResetBtn" title="Reiniciar simulação">↺ Reiniciar</button>
           </div>
         </div>
 

@@ -369,6 +369,12 @@
     steerAngle: 0,
     gear: 'D',
     isStopped: false,
+    driveMode: 'manual', // 'manual' (Condutor) | 'demo' (IA Autônoma)
+    demoState: {
+      pareWaitTimer: 0,
+      pareCompleted: false,
+      narrativeText: ''
+    },
 
     // Veículo à direita no fluxo
     rightCar: {
@@ -2031,7 +2037,8 @@
       roadState.stageTimer = 20.0;
       roadState.stageIndex = (roadState.stageIndex + 1) % ROAD_STAGES.length;
       const nextStage = ROAD_STAGES[roadState.stageIndex];
-      roadState.targetSpeedKmh = nextStage.speedLimit;
+      roadState.speedKmh = Math.min(roadState.speedKmh, nextStage.speedLimit * 0.85);
+      roadState.targetSpeedKmh = roadState.driveMode === 'demo' ? (nextStage.speedLimit * 0.88) : 0;
       const defLane = getPlayerDefaultLane(nextStage);
       roadState.playerLane = defLane;
       roadState.lastLaneIndex = defLane;
@@ -2074,121 +2081,129 @@
     // 2b. Gerador de Eventos Aleatórios do Sistema (SAMU 192, Polícia e Trem)
     updateRandomEvents(dt, stage);
 
-    // 3. Controle de velocidade do jogador (aceleração, frenagem e ré controladas)
-    const accelRate = 24; // km/h por segundo
-    const decelRate = 38;
-    const isReverse = (roadState.gear === 'R');
+    let lateralVelocity = 0;
 
-    // Se o veículo estiver em velocidade residual mínima sem aceleração, imobiliza completamente
-    if (roadState.speedKmh <= 0.25 && roadState.targetSpeedKmh <= 0.25 && !inputState.accel && !inputState.brake) {
-      roadState.isStopped = true;
-      roadState.speedKmh = 0;
-      roadState.targetSpeedKmh = 0;
-    }
+    if (roadState.driveMode === 'demo') {
+      // ── MODO DEMO: A INTELIGÊNCIA ARTIFICIAL CONDUZ RESPEITANDO 100% DOS RITOS DO CTB ──
+      runAiDemoDriver(dt, stage);
+    } else {
+      // ── MODO CONDUZIR: O CONDUTOR (ALUNO) ASSUME O COMANDO COMPLETO ──
+      // 3. Controle de velocidade do jogador (aceleração, frenagem e ré controladas)
+      const accelRate = 24; // km/h por segundo
+      const decelRate = 38;
+      const isReverse = (roadState.gear === 'R');
 
-    if (roadState.isStopped) {
-      // ── VEÍCULO IMOBILIZADO: Só anda com comando explícito de avançar (W/↑) ou ré (S/↓/R) ──
-      if (inputState.accel) {
-        if (isReverse) {
-          roadState.gear = 'D';
-          updateGearButtonsDom('D');
-        }
-        roadState.isStopped = false;
-        roadState.targetSpeedKmh = Math.min(stage.speedLimit + 25, roadState.targetSpeedKmh + accelRate * dt * 2.5);
-        roadState.speedKmh = Math.min(6.0, accelRate * dt * 1.5);
-        roadState.suspensionPitch = 0.02;
-      } else if (inputState.brake) {
-        // Pressionar tecla para trás quando parado engata marcha ré e recua suavemente
-        roadState.gear = 'R';
-        updateGearButtonsDom('R');
-        roadState.isStopped = false;
-        roadState.targetSpeedKmh = Math.min(15.0, roadState.targetSpeedKmh + accelRate * dt * 2.0);
-        roadState.speedKmh = Math.min(4.0, accelRate * dt * 1.2);
-        roadState.suspensionPitch = -0.02;
-      } else {
-        // Nenhuma tecla pressionada: permanece 100% imobilizado aguardando instrução
+      // Se o veículo estiver em velocidade residual mínima sem aceleração, imobiliza completamente
+      if (roadState.speedKmh <= 0.25 && roadState.targetSpeedKmh <= 0.25 && !inputState.accel && !inputState.brake) {
+        roadState.isStopped = true;
         roadState.speedKmh = 0;
         roadState.targetSpeedKmh = 0;
-        roadState.suspensionPitch *= 0.8;
       }
-    } else {
-      // ── VEÍCULO EM MOVIMENTO ──
-      if (isReverse) {
-        // Marcha à ré ativa
-        if (inputState.brake) {
-          // Tecla S / ↓ acelera a ré até 15 km/h
-          roadState.targetSpeedKmh = Math.min(15.0, roadState.targetSpeedKmh + accelRate * dt);
-          roadState.suspensionPitch = -0.02;
-        } else if (inputState.accel) {
-          // Tecla W / ↑ freia a ré até a parada completa
-          roadState.targetSpeedKmh = Math.max(0, roadState.targetSpeedKmh - decelRate * dt);
-          roadState.suspensionPitch = 0.03;
-          if (roadState.targetSpeedKmh <= 0.2 && roadState.speedKmh <= 0.4) {
-            roadState.isStopped = true;
-            roadState.speedKmh = 0;
-            roadState.targetSpeedKmh = 0;
+
+      if (roadState.isStopped) {
+        // ── VEÍCULO IMOBILIZADO: Só anda com comando explícito de avançar (W/↑) ou ré (S/↓/R) ──
+        if (inputState.accel) {
+          if (isReverse) {
             roadState.gear = 'D';
             updateGearButtonsDom('D');
-            showInstruction('🛑 <b>Veículo Imobilizado:</b> Aguardando instrução. Pressione [W / ↑] para avançar.');
           }
-        } else {
-          // Inércia da ré até parar
-          roadState.targetSpeedKmh = Math.max(0, roadState.targetSpeedKmh - 10.0 * dt);
-          if (roadState.targetSpeedKmh <= 0.2 && roadState.speedKmh <= 0.4) {
-            roadState.isStopped = true;
-            roadState.speedKmh = 0;
-            roadState.targetSpeedKmh = 0;
-            showInstruction('🛑 <b>Veículo Imobilizado:</b> Aguardando instrução. Pressione [W / ↑] para avançar ou [S / ↓ / R] para dar ré.');
-          }
-        }
-      } else {
-        // Marcha Drive (frente)
-        if (inputState.accel) {
-          roadState.targetSpeedKmh = Math.min(stage.speedLimit + 25, roadState.targetSpeedKmh + accelRate * dt);
+          roadState.isStopped = false;
+          roadState.targetSpeedKmh = Math.min(stage.speedLimit + 25, roadState.targetSpeedKmh + accelRate * dt * 2.5);
+          roadState.speedKmh = Math.min(6.0, accelRate * dt * 1.5);
           roadState.suspensionPitch = 0.02;
         } else if (inputState.brake) {
-          // Frenagem controlada
-          roadState.targetSpeedKmh = Math.max(0, roadState.targetSpeedKmh - decelRate * dt);
-          roadState.suspensionPitch = -0.04;
-          if (roadState.targetSpeedKmh <= 0.2 && roadState.speedKmh <= 0.4) {
-            roadState.isStopped = true;
-            roadState.speedKmh = 0;
-            roadState.targetSpeedKmh = 0;
-            showInstruction('🛑 <b>Veículo Imobilizado:</b> Aguardando instrução. Pressione [W / ↑] para avançar ou [S / ↓ / R] para dar ré.');
+          // Pressionar tecla para trás quando parado engata marcha ré e recua suavemente
+          roadState.gear = 'R';
+          updateGearButtonsDom('R');
+          roadState.isStopped = false;
+          roadState.targetSpeedKmh = Math.min(15.0, roadState.targetSpeedKmh + accelRate * dt * 2.0);
+          roadState.speedKmh = Math.min(4.0, accelRate * dt * 1.2);
+          roadState.suspensionPitch = -0.02;
+        } else {
+          // Nenhuma tecla pressionada: permanece 100% imobilizado aguardando instrução
+          roadState.speedKmh = 0;
+          roadState.targetSpeedKmh = 0;
+          roadState.suspensionPitch *= 0.8;
+        }
+      } else {
+        // ── VEÍCULO EM MOVIMENTO ──
+        if (isReverse) {
+          // Marcha à ré ativa
+          if (inputState.brake) {
+            // Tecla S / ↓ acelera a ré até 15 km/h
+            roadState.targetSpeedKmh = Math.min(15.0, roadState.targetSpeedKmh + accelRate * dt);
+            roadState.suspensionPitch = -0.02;
+          } else if (inputState.accel) {
+            // Tecla W / ↑ freia a ré até a parada completa
+            roadState.targetSpeedKmh = Math.max(0, roadState.targetSpeedKmh - decelRate * dt);
+            roadState.suspensionPitch = 0.03;
+            if (roadState.targetSpeedKmh <= 0.2 && roadState.speedKmh <= 0.4) {
+              roadState.isStopped = true;
+              roadState.speedKmh = 0;
+              roadState.targetSpeedKmh = 0;
+              roadState.gear = 'D';
+              updateGearButtonsDom('D');
+              showInstruction('🛑 <b>Veículo Imobilizado:</b> Aguardando instrução. Pressione [W / ↑] para avançar.');
+            }
+          } else {
+            // Inércia da ré até parar
+            roadState.targetSpeedKmh = Math.max(0, roadState.targetSpeedKmh - 10.0 * dt);
+            if (roadState.targetSpeedKmh <= 0.2 && roadState.speedKmh <= 0.4) {
+              roadState.isStopped = true;
+              roadState.speedKmh = 0;
+              roadState.targetSpeedKmh = 0;
+              showInstruction('🛑 <b>Veículo Imobilizado:</b> Aguardando instrução. Pressione [W / ↑] para avançar ou [S / ↓ / R] para dar ré.');
+            }
           }
         } else {
-          // Desaceleração suave por freio-motor/inércia até parar
-          roadState.targetSpeedKmh = Math.max(0, roadState.targetSpeedKmh - 7.0 * dt);
-          roadState.suspensionPitch *= 0.9;
-          if (roadState.targetSpeedKmh <= 0.2 && roadState.speedKmh <= 0.4) {
-            roadState.isStopped = true;
-            roadState.speedKmh = 0;
-            roadState.targetSpeedKmh = 0;
-            showInstruction('🛑 <b>Veículo Imobilizado:</b> Aguardando instrução. Pressione [W / ↑] para avançar ou [S / ↓ / R] para dar ré.');
+          // Marcha Drive (frente)
+          if (inputState.accel) {
+            roadState.targetSpeedKmh = Math.min(stage.speedLimit + 25, roadState.targetSpeedKmh + accelRate * dt);
+            roadState.suspensionPitch = 0.02;
+          } else if (inputState.brake) {
+            // Frenagem controlada
+            roadState.targetSpeedKmh = Math.max(0, roadState.targetSpeedKmh - decelRate * dt);
+            roadState.suspensionPitch = -0.04;
+            if (roadState.targetSpeedKmh <= 0.2 && roadState.speedKmh <= 0.4) {
+              roadState.isStopped = true;
+              roadState.speedKmh = 0;
+              roadState.targetSpeedKmh = 0;
+              showInstruction('🛑 <b>Veículo Imobilizado:</b> Aguardando instrução. Pressione [W / ↑] para avançar ou [S / ↓ / R] para dar ré.');
+            }
+          } else {
+            // Desaceleração suave por freio-motor/inércia até parar
+            roadState.targetSpeedKmh = Math.max(0, roadState.targetSpeedKmh - 7.0 * dt);
+            roadState.suspensionPitch *= 0.9;
+            if (roadState.targetSpeedKmh <= 0.2 && roadState.speedKmh <= 0.4) {
+              roadState.isStopped = true;
+              roadState.speedKmh = 0;
+              roadState.targetSpeedKmh = 0;
+              showInstruction('🛑 <b>Veículo Imobilizado:</b> Aguardando instrução. Pressione [W / ↑] para avançar ou [S / ↓ / R] para dar ré.');
+            }
           }
         }
       }
-    }
 
-    if (!roadState.isStopped) {
-      roadState.speedKmh += (roadState.targetSpeedKmh - roadState.speedKmh) * 3.4 * dt;
-    }
-    if (roadState.isStopped || roadState.speedKmh < 0.05) {
-      roadState.speedKmh = roadState.isStopped ? 0 : Math.max(0, roadState.speedKmh);
-    }
+      if (!roadState.isStopped) {
+        roadState.speedKmh += (roadState.targetSpeedKmh - roadState.speedKmh) * 3.4 * dt;
+      }
+      if (roadState.isStopped || roadState.speedKmh < 0.05) {
+        roadState.speedKmh = roadState.isStopped ? 0 : Math.max(0, roadState.speedKmh);
+      }
 
-    // 4. Esterçamento e deslocamento lateral suave entre faixas (apenas quando o veículo tem movimento)
-    let targetSteer = 0;
-    if (inputState.steerLeft)  targetSteer -= 24;
-    if (inputState.steerRight) targetSteer += 24;
-    roadState.steerAngle += (targetSteer - roadState.steerAngle) * 8.5 * dt;
+      // 4. Esterçamento e deslocamento lateral suave entre faixas (apenas quando o veículo tem movimento)
+      let targetSteer = 0;
+      if (inputState.steerLeft)  targetSteer -= 24;
+      if (inputState.steerRight) targetSteer += 24;
+      roadState.steerAngle += (targetSteer - roadState.steerAngle) * 8.5 * dt;
 
-    const lateralSpeedFactor = Math.min(1.0, Math.max(0, roadState.speedKmh) / 25);
-    const steerDir = (roadState.gear === 'R') ? -1 : 1;
-    const lateralVelocity = steerDir * (roadState.steerAngle / 24) * 2.8 * lateralSpeedFactor;
-    roadState.playerX += lateralVelocity * dt;
-    const maxOffset = (stage.roadWidth / 2) + 0.6; // permite alcançar acostamento/calçada para fiscalização
-    roadState.playerX = Math.max(-maxOffset, Math.min(maxOffset, roadState.playerX));
+      const lateralSpeedFactor = Math.min(1.0, Math.max(0, roadState.speedKmh) / 25);
+      const steerDir = (roadState.gear === 'R') ? -1 : 1;
+      lateralVelocity = steerDir * (roadState.steerAngle / 24) * 2.8 * lateralSpeedFactor;
+      roadState.playerX += lateralVelocity * dt;
+      const maxOffset = (stage.roadWidth / 2) + 0.6; // permite alcançar acostamento/calçada para fiscalização
+      roadState.playerX = Math.max(-maxOffset, Math.min(maxOffset, roadState.playerX));
+    }
 
     // FISCALIZAÇÃO CTB ART. 193: Transitar em calçada, ciclovia ou acostamento
     const offRoadThreshold = (stage.roadWidth / 2) - 0.25;
@@ -3134,7 +3149,8 @@
     }
 
     // Proteção rigorosa contra colisão da IA na traseira do aluno (Art. 192 CTB - R04)
-    allAiCars.forEach(v => {
+    allAiCars.concat([roadState.ambulance, roadState.policeCruiser]).forEach(v => {
+      if (!v || v.active === false) return;
       if (v.y < 0 && Math.abs(v.x - roadState.playerX) < ((v.w || 1.8) + VEHICLE.width) * 0.5 + 0.25) {
         const minSafeRearY = -((v.l || 4.3) + VEHICLE.length) * 0.5 - 0.5;
         if (v.y > minSafeRearY) {
@@ -3230,12 +3246,15 @@
               roadState.truck.y = Math.max(roadState.truck.y, (halfL_P + halfL_T) + 0.25);
             }
             roadState.speedKmh = Math.min(roadState.speedKmh, target.speedKmh * 0.3);
-          } else {
             // Veículo atingiu a traseira do player (target.y < 0)
             if (target.id === 'rearCar') {
               roadState.rearCar.y = Math.min(roadState.rearCar.y, -((halfL_P + halfL_T) + 0.25));
+            } else if (target.id === 'ambulance') {
+              roadState.ambulance.y = Math.min(roadState.ambulance.y, -((halfL_P + halfL_T) + 0.25));
+            } else if (target.id === 'police') {
+              roadState.policeCruiser.y = Math.min(roadState.policeCruiser.y, -((halfL_P + halfL_T) + 0.25));
             }
-            roadState.speedKmh = Math.max(roadState.speedKmh, target.speedKmh * 0.85);
+            roadState.speedKmh = Math.min(stage.speedLimit * 0.88, Math.max(roadState.speedKmh, target.speedKmh * 0.85));
           }
         }
 
@@ -3631,7 +3650,10 @@
 
     const statusPill = document.getElementById('simStatusPill');
     if (statusPill) {
-      if (roadState.isStopped && !roadState.infractionText) {
+      if (roadState.driveMode === 'demo') {
+        statusPill.className = 'sim-status-pill green';
+        statusPill.textContent = roadState.demoState?.narrativeText || '🤖 IA CONDUZINDO — Condução Defensiva e CTB 100%';
+      } else if (roadState.isStopped && !roadState.infractionText) {
         statusPill.className = 'sim-status-pill yellow';
         statusPill.textContent = roadState.gear === 'R' ? '⏸️ PARADO (R) — [S / ↓] p/ Ré | [W / ↑] p/ Avançar' : '⏸️ VEÍCULO PARADO — Pressione [W / ↑] para avançar';
       } else {
@@ -3639,6 +3661,8 @@
         statusPill.textContent = roadState.statusText;
       }
     }
+
+    updateDriveModeUi(roadState.driveMode || 'manual');
 
     const spdDisplay = document.getElementById('simSpeedDisplay');
     if (spdDisplay) {
@@ -6607,6 +6631,9 @@
       roadState.trafficLight.y = 35.0;
       roadState.crosswalk.y = 31.5;
 
+      roadState.driveMode = 'manual';
+      updateDriveModeUi('manual');
+
       if (roadState.randomEvents) {
         roadState.randomEvents.timer = 18.0 + Math.random() * 12.0;
         roadState.randomEvents.lastEvent = null;
@@ -7183,6 +7210,8 @@
       roadState.railCrossing.y = 52.0;
       roadState.railCrossing.hasStopped = false;
       roadState.railCrossing.hasViolated = false;
+      roadState.driveMode = 'manual';
+      updateDriveModeUi('manual');
       if (roadState.randomEvents) {
         roadState.randomEvents.timer = 18.0 + Math.random() * 12.0;
         roadState.randomEvents.lastEvent = null;
@@ -7438,6 +7467,14 @@
       return;
     }
 
+    // Alternar Modo Conduzir vs Modo Demo com a tecla M
+    if (k === 'm') {
+      const nextMode = (roadState.driveMode === 'demo') ? 'manual' : 'demo';
+      setDriveMode(nextMode);
+      e.preventDefault();
+      return;
+    }
+
     const map = { 
       arrowleft: 'steerLeft', a: 'steerLeft',
       arrowright: 'steerRight', d: 'steerRight',
@@ -7445,6 +7482,9 @@
       arrowdown: 'brake', s: 'brake'
     };
     if (map[k]) {
+      if (roadState.driveMode === 'demo') {
+        setDriveMode('manual');
+      }
       inputState[map[k]] = true;
       e.preventDefault();
     }
@@ -7591,7 +7631,9 @@
       cnhState.officerTimer = 0;
     });
 
-    document.getElementById('simDemoBtn')?.addEventListener('click', doStartDemo);
+    document.getElementById('simDemoBtn')?.addEventListener('click', () => setDriveMode('demo'));
+    document.getElementById('simBtnDriveUser')?.addEventListener('click', () => setDriveMode('manual'));
+    document.getElementById('simBtnDriveDemo')?.addEventListener('click', () => setDriveMode('demo'));
     document.getElementById('simResetBtn')?.addEventListener('click', doReset);
 
     document.getElementById('simTryAgainBtn')?.addEventListener('click', () => {
@@ -7651,6 +7693,16 @@
       const sitPill = e.target.closest('.sim-sit-pill');
       if (sitPill && sitPill.dataset.stage) {
         setRoadStage(sitPill.dataset.stage);
+      }
+      const driveBtn = e.target.closest('.sim-drive-mode-btn');
+      if (driveBtn && driveBtn.dataset.driveMode) {
+        setDriveMode(driveBtn.dataset.driveMode);
+      }
+      if (e.target.closest('#simBtnDriveUser')) {
+        setDriveMode('manual');
+      }
+      if (e.target.closest('#simBtnDriveDemo')) {
+        setDriveMode('demo');
       }
       if (e.target.closest('#simTriggerAmbulance')) {
         triggerAmbulance();
@@ -7745,7 +7797,8 @@
       roadState.stageIndex = idx;
       roadState.stageTimer = 25.0;
       const nextStage = ROAD_STAGES[idx];
-      roadState.targetSpeedKmh = nextStage.speedLimit;
+      roadState.speedKmh = Math.min(roadState.speedKmh, nextStage.speedLimit * 0.85);
+      roadState.targetSpeedKmh = roadState.driveMode === 'demo' ? (nextStage.speedLimit * 0.88) : 0;
       const defLane = getPlayerDefaultLane(nextStage);
       roadState.playerLane = defLane;
       roadState.lastLaneIndex = defLane;
@@ -7842,8 +7895,8 @@
 
   function triggerAmbulance(isRandom = false) {
     const curStage = ROAD_STAGES[roadState.stageIndex];
-    const nOnc = Math.max(1, Math.floor(curStage.lanes / 2));
-    const targetLane = roadState.isTwoWay ? nOnc : (curStage.lanes === 2 ? 0 : 1);
+    // A viatura de emergência utiliza SEMPRE a faixa da esquerda para ultrapassagem prioritária (Art. 29, VII e 189 CTB)
+    const targetLane = 0;
     roadState.ambulance.active = true;
     roadState.ambulance.x = getLaneCenterX(curStage, targetLane);
     roadState.ambulance.y = -35.0;
@@ -7864,8 +7917,8 @@
 
   function triggerPolice(isRandom = false) {
     const curStage = ROAD_STAGES[roadState.stageIndex];
-    const nOnc = Math.max(1, Math.floor(curStage.lanes / 2));
-    const targetLane = roadState.isTwoWay ? nOnc : 0;
+    // A viatura de emergência utiliza SEMPRE a faixa da esquerda para ultrapassagem prioritária (Art. 29, VII e 189 CTB)
+    const targetLane = 0;
     roadState.policeCruiser.active = true;
     roadState.policeCruiser.isPursuing = true;
     roadState.policeCruiser.sirenActive = true;
@@ -7916,12 +7969,284 @@
     }
   }
 
+  /* ══════════════════════════════════════════════
+     MODO DEMO: IA AUTÔNOMA DE CONDUÇÃO DEFENSIVA (CTB 100%)
+     ══════════════════════════════════════════════ */
+
+  function runAiDemoDriver(dt, stage) {
+    const ds = roadState.demoState = roadState.demoState || {};
+    const speedLimit = stage.speedLimit;
+    let targetSpeed = speedLimit * 0.88; // 88% do limite da via (Art. 218 cumprido sem margem de erro)
+    let targetLane = getPlayerDefaultLane(stage);
+    let desiredSignal = null;
+    let narrative = `🟢 IA no limite ideal da via (${speedLimit} km/h - Art. 218 CTB)`;
+
+    const VL = VEHICLE.length * 0.5; // metade do comprimento do veículo (1.9m)
+    const carFrontY = VL;
+
+    // ── 1. PRIORIDADE MÁXIMA: VIATURA DE EMERGÊNCIA (SAMU 192 ou POLÍCIA) — Art. 189 CTB ──
+    const amb = roadState.ambulance;
+    const pc = roadState.policeCruiser;
+    const isAmbActive = amb && amb.active && amb.y < 35.0;
+    const isPcActive = pc && pc.active && pc.isPursuing && pc.y < 35.0;
+
+    if (isAmbActive || isPcActive) {
+      desiredSignal = 'right';
+      targetLane = stage.lanes - 1; // desloca para a faixa mais à direita possível
+      targetSpeed = Math.min(targetSpeed, Math.max(25.0, speedLimit * 0.55));
+      const evName = isAmbActive ? 'SAMU 192' : 'Viatura Policial';
+      narrative = `🚨 Dando passagem imediata ao ${evName} pela faixa da esquerda (Art. 189 CTB)`;
+    }
+
+    // ── 2. SEMÁFORO INTELIGENTE (Apenas via arterial) — Art. 208 CTB ──
+    if (stage.id === 'arterial' && roadState.trafficLight) {
+      const tl = roadState.trafficLight;
+      if (tl.state === 'red' || tl.state === 'yellow') {
+        const stopLineY = tl.y - 1.7;
+        const distToLine = stopLineY - carFrontY;
+        if (tl.y > 1.0 && distToLine < 35.0) {
+          if (distToLine <= 1.2) {
+            targetSpeed = 0;
+            narrative = '🔴 Parada suave na linha de retenção do semáforo vermelho (Art. 208 CTB)';
+          } else {
+            const vSafe = Math.sqrt(2 * 3.2 * Math.max(0, distToLine - 1.2)) * 3.6;
+            targetSpeed = Math.min(targetSpeed, vSafe);
+            narrative = '🟡 Reduzindo velocidade para parada no semáforo (Art. 208 CTB)';
+          }
+        }
+      }
+    }
+
+    // ── 3. PARADA OBRIGATÓRIA (PLACA PARE R-1 - Via coletora) — Art. 208 CTB ──
+    if (stage.id === 'coletora' && roadState.intersection) {
+      const inter = roadState.intersection;
+      const pareStopY = inter.y - 4.5;
+      const distToPare = pareStopY - carFrontY;
+
+      if (inter.y > 45.0) {
+        ds.pareCompleted = false;
+        ds.pareWaitTimer = 0;
+      }
+
+      if (!ds.pareCompleted && inter.y > 1.5 && distToPare < 30.0) {
+        if (distToPare <= 0.8) {
+          targetSpeed = 0;
+          ds.pareWaitTimer = (ds.pareWaitTimer || 0) + dt;
+          narrative = `🛑 Parada total obrigatória na placa PARE (R-1). Verificando fluxo... (${Math.max(0, 2.0 - ds.pareWaitTimer).toFixed(1)}s)`;
+          if (ds.pareWaitTimer >= 2.0) {
+            ds.pareCompleted = true;
+            ds.pareWaitTimer = 0;
+          }
+        } else {
+          const vSafe = Math.sqrt(2 * 2.8 * Math.max(0, distToPare - 0.8)) * 3.6;
+          targetSpeed = Math.min(targetSpeed, vSafe);
+          narrative = '🛑 Reduzindo para parada total na placa PARE (Art. 208 CTB)';
+        }
+      }
+    }
+
+    // ── 4. CANCELA E TREM DE CARGA (Passagem de nível) — Art. 212 CTB ──
+    if (stage.id === 'ferrovia' && roadState.railCrossing) {
+      const rc = roadState.railCrossing;
+      if (rc.barrierDown || rc.trainPassing) {
+        if (rc.y > 1.0 && rc.y < 42.0) {
+          if (rc.y <= 6.5) {
+            targetSpeed = 0;
+            narrative = '🚂 Parada obrigatória antes dos trilhos — Cancela fechada e trem de carga (Art. 212 CTB)';
+          } else {
+            const distToStop = rc.y - 6.0;
+            const vSafe = Math.sqrt(2 * 3.0 * Math.max(0, distToStop)) * 3.6;
+            targetSpeed = Math.min(targetSpeed, vSafe);
+            narrative = '🚂 Reduzindo para parada antes da ferrovia (Art. 212 CTB)';
+          }
+        }
+      } else if (!rc.hasStopped && rc.y > 2.5 && rc.y < 20.0) {
+        if (rc.y <= 6.5) {
+          targetSpeed = 0;
+          narrative = '🚂 Parada preventiva antes da linha férrea — Olhe, Escute e Pare (Art. 212 CTB)';
+        } else {
+          const distToStop = rc.y - 6.0;
+          const vSafe = Math.sqrt(2 * 2.8 * Math.max(0, distToStop)) * 3.6;
+          targetSpeed = Math.min(targetSpeed, vSafe);
+          narrative = '🚂 Reduzindo para parada regulamentar na passagem de nível (Art. 212 CTB)';
+        }
+      }
+    }
+
+    // ── 5. FAIXA DE PEDESTRES E PREFERÊNCIA — Art. 214 CTB ──
+    if (roadState.crosswalk && roadState.crosswalk.y > -5.0) {
+      const cwY = roadState.crosswalk.y;
+      const distToCw = (cwY - 2.0) - carFrontY;
+      let hasCrossingPed = false;
+      let pedDesc = 'Pedestre';
+
+      if (stage.id === 'escolar') {
+        const tw = roadState.trafficWarden;
+        const hasKids = (roadState.schoolChildren || []).some(c => c.isCrossing);
+        if ((tw && tw.hasWarden && tw.stopSignalActive) || hasKids) {
+          hasCrossingPed = true;
+          pedDesc = tw && tw.hasWarden ? 'Guarda de trânsito apitando parada' : 'Crianças escolares na faixa';
+        }
+      } else if (stage.id === 'coletora') {
+        if (roadState.elderlyPedestrian && roadState.elderlyPedestrian.active) {
+          hasCrossingPed = true;
+          pedDesc = 'Idoso com mobilidade reduzida na faixa (Art. 214-II)';
+        }
+      } else if (stage.id === 'arterial') {
+        if ((roadState.pedestrians || []).some(p => p.isCrossing)) {
+          hasCrossingPed = true;
+          pedDesc = 'Pedestre atravessando na faixa';
+        }
+      }
+
+      if (hasCrossingPed && distToCw > -0.5 && distToCw < 30.0) {
+        if (distToCw <= 1.0) {
+          targetSpeed = 0;
+          narrative = `🚶 Parada na faixa de pedestres — ${pedDesc} (Art. 214 CTB)`;
+        } else {
+          const vSafe = Math.sqrt(2 * 2.8 * Math.max(0, distToCw - 1.0)) * 3.6;
+          targetSpeed = Math.min(targetSpeed, vSafe);
+          narrative = `🚶 Reduzindo para conceder preferência total ao pedestre (Art. 214 CTB)`;
+        }
+      }
+    }
+
+    // ── 6. VEÍCULOS À FRENTE E ÔNIBUS ESCOLAR — Art. 192 CTB ──
+    let targetLaneX = getLaneCenterX(stage, targetLane);
+    if (roadState.frontCar && roadState.frontCar.y > 0 && roadState.frontCar.y < 35.0) {
+      const fc = roadState.frontCar;
+      if (Math.abs(fc.x - roadState.playerX) < 2.0) {
+        const distToFc = fc.y - (fc.l * 0.5 + carFrontY);
+        const safeGap = Math.max(7.5, (roadState.speedKmh / 10) * 2.0);
+        if (distToFc < safeGap) {
+          const matchSpd = Math.max(0, fc.speedKmh - 3.0);
+          targetSpeed = Math.min(targetSpeed, matchSpd);
+          if (distToFc < 3.0) targetSpeed = 0;
+          narrative = `🚗 Mantendo distância segura de seguimento do carro à frente (Art. 192 CTB)`;
+        }
+      }
+    }
+
+    if (stage.id === 'escolar' && roadState.schoolBus && roadState.schoolBus.y > 0 && roadState.schoolBus.y < 30.0) {
+      const sb = roadState.schoolBus;
+      if (Math.abs(sb.x - roadState.playerX) < 2.0) {
+        const distToSb = sb.y - (sb.l * 0.5 + carFrontY);
+        if (distToSb < 8.0) {
+          targetSpeed = Math.min(targetSpeed, Math.max(0, (distToSb - 2.5) * 3.6));
+          narrative = '🚌 Aguardando ônibus escolar em embarque/desembarque de alunos (Art. 220 CTB)';
+        }
+      }
+    }
+
+    // ── 7. CICLISTA LATERAL — Art. 201 CTB (1,50 m) ──
+    if (stage.isUrban && roadState.cyclist && roadState.cyclist.y > -2.0 && roadState.cyclist.y < 25.0) {
+      const cyc = roadState.cyclist;
+      const cycDistY = cyc.y - carFrontY;
+      const latGap = Math.abs(roadState.playerX - cyc.x) - (VEHICLE.width * 0.5);
+
+      if (cycDistY > -2.0 && cycDistY < 18.0 && latGap < 1.6) {
+        const safePlayerX = cyc.x - (VEHICLE.width * 0.5) - 1.85;
+        targetLaneX = safePlayerX;
+        desiredSignal = 'left';
+        targetSpeed = Math.min(targetSpeed, Math.max(15.0, speedLimit * 0.6));
+        narrative = '🚴 Manobra de afastamento lateral com folga > 1,50m do ciclista (Art. 201 CTB)';
+      }
+    }
+
+    // ── 7.5. ANIMAL PRÓXIMO À PISTA — Art. 220, XI CTB ──
+    if (roadState.animal && roadState.animal.y > -6.0 && roadState.animal.y < 22.0) {
+      targetSpeed = Math.min(targetSpeed, stage.speedLimit * 0.70);
+      narrative = '🐕 Reduzindo velocidade preventivamente por animal nas proximidades da pista (Art. 220, XI CTB)';
+    }
+
+    // ── 8. ATUALIZAÇÃO DA SETA ──
+    if (desiredSignal) {
+      if (roadState.turnSignal !== desiredSignal) {
+        roadState.turnSignal = desiredSignal;
+        roadState.turnSignalTimer = 0;
+      }
+    } else {
+      roadState.turnSignal = null;
+    }
+
+    // ── 9. APLICAÇÃO DE CONTROLE DE TRAÇÃO E DIREÇÃO ──
+    roadState.gear = 'D';
+    ds.narrativeText = narrative;
+
+    const targetX = targetLaneX !== undefined ? targetLaneX : getLaneCenterX(stage, targetLane);
+    const lateralDiff = targetX - roadState.playerX;
+    roadState.steerAngle = Math.max(-18, Math.min(18, lateralDiff * 14));
+    roadState.playerX += lateralDiff * Math.min(1.0, 3.2 * dt);
+
+    if (targetSpeed < roadState.speedKmh) {
+      roadState.speedKmh = Math.max(targetSpeed, roadState.speedKmh - 30.0 * dt);
+      roadState.suspensionPitch = -0.02;
+    } else {
+      roadState.speedKmh = Math.min(targetSpeed, roadState.speedKmh + 18.0 * dt);
+      roadState.suspensionPitch = 0.01;
+    }
+    roadState.targetSpeedKmh = targetSpeed;
+
+    if (roadState.speedKmh <= 0.25 && targetSpeed === 0) {
+      roadState.speedKmh = 0;
+      roadState.targetSpeedKmh = 0;
+      roadState.isStopped = true;
+    } else {
+      roadState.isStopped = false;
+    }
+  }
+
+  function setDriveMode(mode) {
+    roadState.driveMode = mode;
+    updateDriveModeUi(mode);
+
+    if (currentScenario === 'baliza-basica') {
+      if (mode === 'demo') {
+        doStartDemo();
+      } else {
+        switchMode('guided');
+      }
+      return;
+    }
+
+    if (mode === 'demo') {
+      inputState = { steerLeft: false, steerRight: false, accel: false, brake: false };
+      roadState.gear = 'D';
+      roadState.isStopped = false;
+      if (!roadState.demoState) roadState.demoState = {};
+      roadState.demoState.pareWaitTimer = 0;
+      roadState.demoState.pareCompleted = false;
+      const curStage = ROAD_STAGES[roadState.stageIndex];
+      roadState.demoState.narrativeText = `Condução defensiva ativada — respeitando 100% das normas do CTB (${curStage.speedLimit} km/h)`;
+      showInstruction(`🤖 <b>MODO DEMO (IA NO COMANDO):</b> A Inteligência Artificial está conduzindo o veículo respeitando rigorosamente todos os ritos e leis do CTB. Observe e aprenda!`);
+      playAlertBeep(false);
+    } else {
+      inputState = { steerLeft: false, steerRight: false, accel: false, brake: false };
+      roadState.targetSpeedKmh = 0;
+      roadState.steerAngle = 0;
+      showInstruction(`🚗 <b>MODO CONDUZIR ATIVADO:</b> Você assumiu o comando do veículo! Utilize [W / ↑] para acelerar, [S / ↓] para frear/ré e [A / D] para esterçar.`);
+      playAlertBeep(false);
+    }
+  }
+
+  function updateDriveModeUi(mode) {
+    const btnUser = document.getElementById('simBtnDriveUser');
+    const btnDemo = document.getElementById('simBtnDriveDemo');
+    if (btnUser) btnUser.classList.toggle('active', mode === 'manual');
+    if (btnDemo) {
+      btnDemo.classList.toggle('active', mode === 'demo');
+      btnDemo.classList.toggle('demo-active', mode === 'demo');
+    }
+  }
+
   globalThis.AGDSimulator = { 
     init: initSimulator, 
     destroy: destroySimulator, 
     setViewLayout, 
     switchScenario,
     setRoadStage,
+    setDriveMode,
+    getDriveMode: () => roadState.driveMode || 'manual',
     triggerAmbulance,
     triggerPolice,
     triggerTrain,
@@ -7937,7 +8262,7 @@
     getRoadStages: () => ROAD_STAGES,
     getRoadState: () => roadState,
     // Gancho para a auditoria automatizada (tests/simulator-ctb-audit.cjs)
-    _test: { step: (dt) => updateRoadPhysics(dt), vehicle: VEHICLE, getLaneCenterX, getPlayerDefaultLane }
+    _test: { step: (dt) => updateRoadPhysics(dt), vehicle: VEHICLE, getLaneCenterX, getPlayerDefaultLane, runAiDemoDriver }
   };
 
 })();
