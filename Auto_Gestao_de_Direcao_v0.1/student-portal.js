@@ -414,9 +414,12 @@
         <div class="sim-sit-top">
           <div class="sim-sit-header">
             <span class="sim-sit-title">🚦 SITUAÇÕES E VIAS COTIDIANAS (CTB BRASIL)</span>
-            <span class="sim-sit-subtitle">Velocidades reais, preferências, áreas escolares, idosos e travessias:</span>
+            <span class="sim-sit-subtitle">Velocidades reais, preferências, cruzamentos e eventos surpresa de emergência:</span>
           </div>
           <div class="sim-sit-actions">
+            <span class="sim-random-badge" id="simRandomBadge" title="O sistema aciona SAMU 192, Polícia e Trem aleatoriamente durante o percurso">
+              🎲 Aleatório: SAMU • Polícia • Trem
+            </span>
             <button class="sim-trigger-btn red" id="simTriggerAmbulance" title="Ambulância SAMU pedindo passagem com sirene (Art. 189 CTB)">
               🚨 Chamar SAMU 192
             </button>

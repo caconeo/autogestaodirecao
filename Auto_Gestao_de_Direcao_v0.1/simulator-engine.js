@@ -483,6 +483,15 @@
       hasViolated: false
     },
 
+    // ── SISTEMA AUTÔNOMO DE EVENTOS ALEATÓRIOS (SAMU, POLÍCIA, TREM) ──
+    randomEvents: {
+      enabled: true,
+      timer: 18.0 + Math.random() * 12.0, // Primeiro evento entre 18s e 30s
+      minInterval: 28.0,
+      maxInterval: 50.0,
+      lastEvent: null
+    },
+
     // ── SITUAÇÃO 5: PASSAGEM DE NÍVEL FERROVIÁRIA (CTB Art. 212) ──
     railCrossing: {
       active: true,
@@ -561,7 +570,9 @@
       isPursuing: false,
       sirenActive: false,
       flashBlue: true,
-      spawnTimer: 18.0
+      spawnTimer: 18.0,
+      hasYielded: false,
+      hasViolated: false
     },
 
     // Motocicleta (CTB Art. 29 e Art. 40 - Farol aceso de dia/noite e faixa regulamentar)
@@ -2060,6 +2071,9 @@
       }
     }
 
+    // 2b. Gerador de Eventos Aleatórios do Sistema (SAMU 192, Polícia e Trem)
+    updateRandomEvents(dt, stage);
+
     // 3. Controle de velocidade do jogador (aceleração, frenagem e ré controladas)
     const accelRate = 24; // km/h por segundo
     const decelRate = 38;
@@ -2468,11 +2482,27 @@
     if (pc.active && pc.isPursuing) {
       const pcSpeedMs = (pc.speedKmh * 1000) / 3600;
       pc.y += (pcSpeedMs - speedMs) * dt;
+
+      // O condutor deve ligar seta para a direita e abrir a faixa esquerda/central
+      const isYieldingPolice = roadState.playerX > 1.25 && roadState.turnSignal === 'right';
+      if (isYieldingPolice && !pc.hasYielded) {
+        pc.hasYielded = true;
+        commendDriver('Conduta cidadã exemplar! Deu passagem imediata à viatura policial em emergência (Art. 189 cumprido)!', 'Art. 189 do CTB');
+      }
+
+      // Se a viatura alcançar o veículo sem que este abra passagem
+      if (pc.y > -6.0 && pc.y < 3.0 && roadState.playerX < 0.75 && !pc.hasViolated) {
+        pc.hasViolated = true;
+        issueAit('ART_189', 'Deixou de dar passagem à viatura policial com sirene e sinais luminosos acionados.');
+      }
+
       if (pc.y > 65.0) {
         pc.active = false;
         pc.isPursuing = false;
         pc.sirenActive = false;
         pc.y = -45.0;
+        pc.hasYielded = false;
+        pc.hasViolated = false;
       }
     }
 
@@ -6577,6 +6607,11 @@
       roadState.trafficLight.y = 35.0;
       roadState.crosswalk.y = 31.5;
 
+      if (roadState.randomEvents) {
+        roadState.randomEvents.timer = 18.0 + Math.random() * 12.0;
+        roadState.randomEvents.lastEvent = null;
+      }
+
       updateActionButtons();
       if (scenarioId === 'cidade-ctb') {
         showInstruction('🏙️ <b>Simulador de Trânsito Real & CTB:</b> Você está sob fiscalização estrita do <b>Agente Silva</b>! Respeite áreas escolares (30 km/h), placa PARE (R-1), passagens férreas, idosos e dê passagem ao SAMU 192 (Art. 189)!');
@@ -7148,6 +7183,10 @@
       roadState.railCrossing.y = 52.0;
       roadState.railCrossing.hasStopped = false;
       roadState.railCrossing.hasViolated = false;
+      if (roadState.randomEvents) {
+        roadState.randomEvents.timer = 18.0 + Math.random() * 12.0;
+        roadState.randomEvents.lastEvent = null;
+      }
       roadState.frontCar.lane = defLane;
       roadState.frontCar.x = getLaneCenterX(stg0, defLane);
       roadState.rearCar.lane = defLane;
@@ -7753,7 +7792,55 @@
     }
   }
 
-  function triggerAmbulance() {
+  /* ══════════════════════════════════════════════
+     ACIONAMENTO ALEATÓRIO E MANUAL DE EVENTOS
+     ══════════════════════════════════════════════ */
+
+  function updateRandomEvents(dt, stage) {
+    if (!roadState.randomEvents || !roadState.randomEvents.enabled) return;
+    // Não interfere em auditorias automatizadas ou testes unitários com stageTimer fixado
+    if (roadState.stageTimer > 1000) return;
+    // Não dispara se houve colisão com trem ou colisão frontal/lateral ativa
+    if (roadState.trainFatalCrash || roadState.collisionFlashTimer > 0) return;
+
+    // Se algum evento de emergência já estiver ativo, mantém cooldown
+    const isEmergencyActive = roadState.ambulance.active || 
+      roadState.policeCruiser.isPursuing || 
+      (stage.id === 'ferrovia' && (roadState.railCrossing.trainPassing || roadState.railCrossing.barrierDown));
+
+    if (isEmergencyActive) {
+      if (roadState.randomEvents.timer < 14.0) {
+        roadState.randomEvents.timer = 14.0 + Math.random() * 8.0;
+      }
+      return;
+    }
+
+    roadState.randomEvents.timer -= dt;
+    if (roadState.randomEvents.timer <= 0) {
+      const interval = roadState.randomEvents.minInterval + 
+        Math.random() * (roadState.randomEvents.maxInterval - roadState.randomEvents.minInterval);
+      roadState.randomEvents.timer = interval;
+
+      // Seleciona um evento aleatório dentre os 3 (SAMU, Polícia, Trem), alternando o último
+      const pool = ['samu', 'police', 'train'].filter(ev => ev !== roadState.randomEvents.lastEvent);
+      const chosen = pool[Math.floor(Math.random() * pool.length)] || 'samu';
+      roadState.randomEvents.lastEvent = chosen;
+
+      triggerEventByName(chosen, true);
+    }
+  }
+
+  function triggerEventByName(name, isRandom = false) {
+    if (name === 'samu') {
+      triggerAmbulance(isRandom);
+    } else if (name === 'police') {
+      triggerPolice(isRandom);
+    } else if (name === 'train') {
+      triggerTrain(isRandom);
+    }
+  }
+
+  function triggerAmbulance(isRandom = false) {
     const curStage = ROAD_STAGES[roadState.stageIndex];
     const nOnc = Math.max(1, Math.floor(curStage.lanes / 2));
     const targetLane = roadState.isTwoWay ? nOnc : (curStage.lanes === 2 ? 0 : 1);
@@ -7762,28 +7849,43 @@
     roadState.ambulance.y = -35.0;
     roadState.ambulance.hasYielded = false;
     roadState.ambulance.hasViolated = false;
+    roadState.ambulance.speedKmh = Math.max(85.0, Math.max((curStage.speedLimit || 60) + 20.0, roadState.speedKmh + 25.0));
     playAmbulanceSiren();
-    showInstruction('🚨 <b>Ambulância SAMU 192 se aproximando com sirene e giroflex!</b> Desloque seu veículo para a faixa da direita e dê passagem (Art. 189 CTB)!');
+    const tag = isRandom ? '🎲 <b>[SISTEMA - EVENTO ALEATÓRIO]</b> ' : '';
+    showInstruction(`${tag}🚨 <b>Ambulância SAMU 192 se aproximando com sirene e giroflex!</b> Desloque seu veículo para a faixa da direita e dê passagem (Art. 189 CTB)!`);
     roadState.statusLevel = 'yellow';
     roadState.statusText = '🚨 SAMU EM EMERGÊNCIA — Desloque para a Direita (Art. 189)!';
+
+    if (!isRandom && roadState.randomEvents) {
+      roadState.randomEvents.timer = roadState.randomEvents.minInterval + Math.random() * 12.0;
+      roadState.randomEvents.lastEvent = 'samu';
+    }
   }
 
-  function triggerPolice() {
+  function triggerPolice(isRandom = false) {
     const curStage = ROAD_STAGES[roadState.stageIndex];
     const nOnc = Math.max(1, Math.floor(curStage.lanes / 2));
     const targetLane = roadState.isTwoWay ? nOnc : 0;
     roadState.policeCruiser.active = true;
     roadState.policeCruiser.isPursuing = true;
     roadState.policeCruiser.sirenActive = true;
+    roadState.policeCruiser.hasYielded = false;
+    roadState.policeCruiser.hasViolated = false;
     roadState.policeCruiser.x = getLaneCenterX(curStage, targetLane);
     roadState.policeCruiser.y = -35.0;
-    roadState.policeCruiser.speedKmh = Math.max(90.0, roadState.speedKmh + 35.0);
-    showInstruction('🚓 <b>Viatura Policial / PRF em aproximação com sirene oficial!</b> Desloque seu veículo para a faixa da direita e dê passagem (Art. 189 CTB)!');
+    roadState.policeCruiser.speedKmh = Math.max(90.0, Math.max((curStage.speedLimit || 60) + 22.0, roadState.speedKmh + 32.0));
+    const tag = isRandom ? '🎲 <b>[SISTEMA - EVENTO ALEATÓRIO]</b> ' : '';
+    showInstruction(`${tag}🚓 <b>Viatura Policial / PRF em aproximação com sirene oficial!</b> Desloque seu veículo para a faixa da direita e dê passagem (Art. 189 CTB)!`);
     roadState.statusLevel = 'yellow';
     roadState.statusText = '🚓 POLÍCIA EM EMERGÊNCIA — Desloque para a Direita (Art. 189)!';
+
+    if (!isRandom && roadState.randomEvents) {
+      roadState.randomEvents.timer = roadState.randomEvents.minInterval + Math.random() * 12.0;
+      roadState.randomEvents.lastEvent = 'police';
+    }
   }
 
-  function triggerTrain() {
+  function triggerTrain(isRandom = false) {
     setRoadStage('ferrovia');
     roadState.railCrossing.y = 28.0;
     roadState.railCrossing.trainX = -60.0;
@@ -7792,7 +7894,15 @@
     roadState.railCrossing.hasStopped = false;
     roadState.railCrossing.hasViolated = false;
     playTrainCrossingBell();
-    showInstruction('🚂 <b>Trem de carga se aproximando da passagem de nível!</b> Parada Obrigatória antes dos trilhos (Art. 212 CTB)!');
+    const tag = isRandom ? '🎲 <b>[SISTEMA - EVENTO ALEATÓRIO]</b> ' : '';
+    showInstruction(`${tag}🚂 <b>Trem de carga se aproximando da passagem de nível!</b> Parada Obrigatória antes dos trilhos (Art. 212 CTB)!`);
+    roadState.statusLevel = 'yellow';
+    roadState.statusText = '🚂 TREM NA PASSAGEM DE NÍVEL — Parada Obrigatória (Art. 212)!';
+
+    if (!isRandom && roadState.randomEvents) {
+      roadState.randomEvents.timer = roadState.randomEvents.minInterval + Math.random() * 12.0;
+      roadState.randomEvents.lastEvent = 'train';
+    }
   }
 
   function toggleSchoolWarden() {
@@ -7816,6 +7926,14 @@
     triggerPolice,
     triggerTrain,
     toggleSchoolWarden,
+    setRandomEventsEnabled: (en) => { if (roadState.randomEvents) roadState.randomEvents.enabled = !!en; },
+    isRandomEventsEnabled: () => !!(roadState.randomEvents && roadState.randomEvents.enabled),
+    triggerRandomEvent: () => {
+      const pool = ['samu', 'police', 'train'].filter(ev => ev !== (roadState.randomEvents && roadState.randomEvents.lastEvent));
+      const chosen = pool[Math.floor(Math.random() * pool.length)] || 'samu';
+      if (roadState.randomEvents) roadState.randomEvents.lastEvent = chosen;
+      triggerEventByName(chosen, true);
+    },
     getRoadStages: () => ROAD_STAGES,
     getRoadState: () => roadState,
     // Gancho para a auditoria automatizada (tests/simulator-ctb-audit.cjs)
