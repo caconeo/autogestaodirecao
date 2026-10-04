@@ -171,6 +171,12 @@
     return -(stage.roadWidth * 0.5) + (safeLane + 0.5) * lw;
   }
 
+  function getPlayerDefaultLane(stage) {
+    if (!stage || !stage.lanes) return 0;
+    if (stage.lanes === 4) return 2;
+    return 1;
+  }
+
   /* ══════════════════════════════════════════════
      BASE JURÍDICA COMPLETA DO CÓDIGO DE TRÂNSITO BRASILEIRO (CTB)
      ══════════════════════════════════════════════ */
@@ -356,8 +362,8 @@
     stageIndex: 0,
     stageTimer: 25.0,
     roadScrollY: 0,
-    playerX: 0,               // offset lateral em metros do centro da faixa
-    playerLane: 1,            // faixa central
+    playerX: getLaneCenterX(ROAD_STAGES[0], 1), // centro da faixa regulamentar da direita (2.125m)
+    playerLane: 1,                              // faixa regulamentar da direita
     speedKmh: 30,
     targetSpeedKmh: 30,
     steerAngle: 0,
@@ -377,7 +383,7 @@
     // Veículo à frente na mesma faixa
     frontCar: {
       lane: 1,
-      x: 0,
+      x: getLaneCenterX(ROAD_STAGES[0], 1),
       y: 19.0,
       speedKmh: 30,
       w: 1.85,
@@ -388,7 +394,7 @@
     // Veículo na faixa rápida da esquerda
     leftCar: {
       lane: 0,
-      x: -3.5,
+      x: getLaneCenterX(ROAD_STAGES[0], 0),
       y: -28.0,
       speedKmh: 55,
       w: 1.8,
@@ -399,7 +405,7 @@
     // Veículo atrás na mesma faixa
     rearCar: {
       lane: 1,
-      x: 0,
+      x: getLaneCenterX(ROAD_STAGES[0], 1),
       y: -22.0,
       speedKmh: 30,
       w: 2.1,
@@ -435,12 +441,12 @@
 
     // ── SITUAÇÃO 2: IDOSO NA FAIXA / ACESSIBILIDADE (CTB Art. 214-II) ──
     elderlyPedestrian: {
-      active: true,
-      x: -3.8,
-      y: 24.0,
+      active: false,
+      x: -12.0,
+      y: 33.5,
       dir: 1,
       speed: 0.42,
-      isCrossing: true,
+      isCrossing: false,
       anim: 0,
       hasPassed: false,
       hasViolated: false
@@ -533,7 +539,7 @@
 
     // Animal na via (Cachorro caramelo na cidade / Capivara no acostamento da rodovia - Art. 220, XI)
     animal: {
-      x: 4.6,
+      x: 8.5,
       y: 28.0,
       type: 'dog',            // 'dog' | 'capivara'
       dir: -1,
@@ -623,7 +629,7 @@
       y: 50.0,
       w: 1.85,
       l: 4.3,
-      speedKmh: 55.0,
+      speedKmh: 28.0,
       color: '#b91c1c',       // Carro vermelho em sentido oposto
       flashLights: false,
       active: true
@@ -811,6 +817,14 @@
         a.pause();
         a.currentTime = 0;
       }
+    }
+  }
+
+  function stopProximityAudio(key) {
+    const a = realAudio[key];
+    if (a && !a.paused) {
+      a.pause();
+      a.currentTime = 0;
     }
   }
 
@@ -1980,6 +1994,11 @@
       roadState.stageIndex = (roadState.stageIndex + 1) % ROAD_STAGES.length;
       const nextStage = ROAD_STAGES[roadState.stageIndex];
       roadState.targetSpeedKmh = nextStage.speedLimit;
+      const defLane = getPlayerDefaultLane(nextStage);
+      roadState.playerLane = defLane;
+      roadState.lastLaneIndex = defLane;
+      roadState.playerX = getLaneCenterX(nextStage, defLane);
+      roadState.steerAngle = 0;
       playAlertBeep(false);
       showRoadStageNotification(nextStage);
     }
@@ -2051,26 +2070,27 @@
     }
 
     // 5. INTENÇÃO DE MUDANÇA DE FAIXA E FISCALIZAÇÃO DA SETA (CTB Art. 196)
-    let currentLane = 1;
-    if (roadState.playerX < -1.75) currentLane = 0;
-    else if (roadState.playerX > 1.75) currentLane = 2;
+    const roadLeft = -stage.roadWidth * 0.5;
+    const lw = stage.roadWidth / stage.lanes;
+    const currentLane = Math.max(0, Math.min(stage.lanes - 1, Math.floor((roadState.playerX - roadLeft) / lw)));
+    roadState.playerLane = currentLane;
 
     const isDriftingLeft = (roadState.steerAngle < -4 || lateralVelocity < -0.15);
     const isDriftingRight = (roadState.steerAngle > 4 || lateralVelocity > 0.15);
 
-    if (currentLane === 1) {
-      if (roadState.playerX < -0.75 && isDriftingLeft && roadState.turnSignal !== 'left') {
+    const laneLeftDivider = roadLeft + currentLane * lw;
+    const laneRightDivider = roadLeft + (currentLane + 1) * lw;
+    const carLeft = roadState.playerX - (VEHICLE.width / 2);
+    const carRight = roadState.playerX + (VEHICLE.width / 2);
+
+    if (currentLane > 0) {
+      if ((carLeft - laneLeftDivider) < 0.35 && isDriftingLeft && roadState.turnSignal !== 'left') {
         issueAit('ART_196', 'Iniciou manobra para a faixa da esquerda sem prévia sinalização por seta.');
-      } else if (roadState.playerX > 0.75 && isDriftingRight && roadState.turnSignal !== 'right') {
+      }
+    }
+    if (currentLane < stage.lanes - 1) {
+      if ((laneRightDivider - carRight) < 0.35 && isDriftingRight && roadState.turnSignal !== 'right') {
         issueAit('ART_196', 'Iniciou manobra para a faixa da direita sem prévia sinalização por seta.');
-      }
-    } else if (currentLane === 0) {
-      if (roadState.playerX > -2.7 && isDriftingRight && roadState.turnSignal !== 'right') {
-        issueAit('ART_196', 'Retornou da faixa esquerda para o centro sem acionar a seta para a direita.');
-      }
-    } else if (currentLane === 2) {
-      if (roadState.playerX < 2.7 && isDriftingLeft && roadState.turnSignal !== 'left') {
-        issueAit('ART_196', 'Retornou da faixa direita para o centro sem acionar a seta para a esquerda.');
       }
     }
 
@@ -2090,11 +2110,11 @@
         } else {
           const isRightClear = !roadState.blindSpotActive && (roadState.rightCar.y < -3.5 || roadState.rightCar.y > 6.5);
           if (isRightClear) {
-            roadState.successText = '✓ Mudança para a direita com seta e faixa desimpedida com segurança!';
+            roadState.successText = '✓ Mudança de faixa para a direita com seta e segurança (Art. 196 cumprido)!';
             roadState.successTimer = 3.5;
             playAlertBeep(false);
           } else {
-            issueAit('ART_192', 'Mudança de faixa perigosa sobre veículo no ponto cego sem guardar distância segura!');
+            issueAit('ART_192', 'Mudou para a faixa da direita interceptando a trajetória de veículo próximo (ponto cego).');
           }
           roadState.turnSignal = null;
         }
@@ -2117,7 +2137,8 @@
     }
 
     // 8. SEMÁFORO INTELIGENTE (CTB ART. 208 - APENAS NA CIDADE)
-    if (stage.isUrban) {
+    // 8. SEMÁFORO INTELIGENTE (CTB ART. 208 - APENAS NA VIA ARTERIAL)
+    if (stage.id === 'arterial') {
       const tl = roadState.trafficLight;
       tl.timer -= dt;
       if (tl.state === 'green' && tl.timer <= 0) {
@@ -2138,8 +2159,8 @@
         tl.hasViolated = false;
       }
 
-      // Linha de retenção do semáforo
-      const stopLineDist = tl.y - 3.5;
+      // Linha de retenção do semáforo (fica em tl.y - 3.2)
+      const stopLineDist = tl.y - 3.2;
       if (tl.state === 'red') {
         if (stopLineDist < 1.0 && stopLineDist > -3.0 && roadState.speedKmh > 5.0 && !tl.hasViolated) {
           tl.hasViolated = true;
@@ -2165,7 +2186,7 @@
       tw.y = sb.y - 4.5;
       roadState.crosswalk.y = tw.y;
 
-      // Movimentação das crianças na faixa
+      // Movimentação das crianças na faixa zebrada
       roadState.schoolChildren.forEach(kid => {
         kid.y = tw.y;
         kid.anim += dt * 4.5;
@@ -2210,48 +2231,68 @@
       }
     }
 
-    // 10. SITUAÇÃO IDOSO NA FAIXA / ACESSIBILIDADE (CTB ART. 214, II)
-    if (stage.isUrban && stage.id !== 'escolar') {
+    // 10. SITUAÇÃO IDOSO NA FAIXA / ACESSIBILIDADE (CTB ART. 214, II — VIA COLETORA)
+    if (stage.id === 'coletora') {
       const eld = roadState.elderlyPedestrian;
-      eld.y -= (speedMs * dt) * 0.95;
+      eld.active = true;
+      // Idoso caminha EXCLUSIVAMENTE sobre a faixa zebrada
+      eld.y = roadState.crosswalk.y;
       eld.anim += dt * 2.8;
-      eld.x += eld.dir * eld.speed * dt;
-      if (eld.x > 3.6) eld.dir = -1;
-      if (eld.x < -3.6) eld.dir = 1;
 
-      if (eld.y < -15.0) {
-        eld.y = 44.0;
-        eld.hasPassed = false;
-        eld.hasViolated = false;
+      const halfW = stage.roadWidth * 0.5;
+      // Idoso só atravessa a pista se os veículos estiverem parados ou em aproximação lenta
+      const isTrafficSafeForElderly = (roadState.speedKmh < 3.0 && Math.abs(roadState.crosswalk.y) < 14.0) ||
+                                     roadState.frontCar.speedKmh < 3.0;
+
+      if (isTrafficSafeForElderly || Math.abs(eld.x) < (halfW - 0.2)) {
+        eld.x += eld.dir * eld.speed * dt;
+        if (eld.x > (halfW + 0.95)) { eld.dir = -1; eld.x = halfW + 0.95; }
+        if (eld.x < -(halfW + 0.95)) { eld.dir = 1; eld.x = -(halfW + 0.95); }
+      } else {
+        // Aguarda pacientemente no meio-fio da calçada
+        eld.x = eld.dir > 0 ? -(halfW + 0.95) : +(halfW + 0.95);
       }
 
-      if (Math.abs(eld.y) < 3.5 && Math.abs(eld.x) < 3.2) {
+      if (Math.abs(roadState.crosswalk.y) < 2.5 && Math.abs(eld.x) < (halfW - 0.2)) {
         if (roadState.speedKmh > 5.0 && !eld.hasViolated) {
           eld.hasViolated = true;
-          issueAit('ART_214_II', 'Deixou de dar preferência a pedestre idoso com bengala em travessia na via.');
+          issueAit('ART_214_II', 'Deixou de dar preferência a pedestre idoso com bengala em travessia na faixa.');
         } else if (roadState.speedKmh < 1.0 && !eld.hasPassed) {
           eld.hasPassed = true;
           commendDriver('Respeito exemplar ao pedestre idoso! Aguardou com paciência a conclusão da travessia com segurança.', 'Art. 214, II do CTB');
         }
       }
+    } else {
+      roadState.elderlyPedestrian.active = false;
+      roadState.elderlyPedestrian.x = -(stage.roadWidth * 0.5 + 2.5);
     }
 
     // 11. SITUAÇÃO CRUZAMENTO COM PLACA R-1 (PARADA OBRIGATÓRIA - PARE)
     if (stage.id === 'coletora') {
       const inter = roadState.intersection;
       inter.y -= speedMs * dt;
-      inter.crossingCar.x -= inter.crossingCar.speed * dt;
+      roadState.crosswalk.y = inter.y - 2.0;
+
+      // Veículo transversal cruza com preferência, mas NUNCA colide com veículos na via (Art. 29/44 CTB)
+      const allRoadCars = [roadState.frontCar, roadState.leftCar, roadState.rightCar, roadState.truck, roadState.motorcycle].filter(v => v && v.active !== false);
+      const isCarPassingCrossing = Math.abs(inter.y) < 4.0 ||
+        allRoadCars.some(v => Math.abs(v.y - inter.y) < ((v.l || 4.3) + 1.85) * 0.5 + 1.5 && Math.abs(v.x - inter.crossingCar.x) < ((v.w || 1.8) + 4.2) * 0.5 + 1.5);
+
+      if (!isCarPassingCrossing || Math.abs(inter.crossingCar.x) > (stage.roadWidth * 0.5 + 2.0)) {
+        inter.crossingCar.x -= inter.crossingCar.speed * dt;
+      }
       if (inter.crossingCar.x < -18.0) inter.crossingCar.x = 22.0;
 
       if (inter.y < -14.0) {
         inter.y = 52.0;
+        roadState.crosswalk.y = inter.y - 2.0;
         inter.hasStoppedCompletely = false;
         inter.hasPassedIntersection = false;
         inter.hasViolated = false;
       }
 
-      // Parada completa na linha de retenção diante da placa R-1
-      const distToStop = inter.y - 2.5;
+      // Parada completa na linha de retenção diante da placa R-1 (fica em inter.y - 3.5)
+      const distToStop = inter.y - 3.5;
       if (distToStop <= 4.0 && distToStop >= 0.2 && roadState.speedKmh < 1.0) {
         inter.hasStoppedCompletely = true;
       }
@@ -2296,6 +2337,19 @@
         amb.y = -45.0;
         amb.hasYielded = false;
         amb.hasViolated = false;
+      }
+    }
+
+    // 12b. VIATURA POLICIAL EM PERSEGUIÇÃO / EMERGÊNCIA (CTB ART. 189)
+    const pc = roadState.policeCruiser;
+    if (pc.active && pc.isPursuing) {
+      const pcSpeedMs = (pc.speedKmh * 1000) / 3600;
+      pc.y += (pcSpeedMs - speedMs) * dt;
+      if (pc.y > 65.0) {
+        pc.active = false;
+        pc.isPursuing = false;
+        pc.sirenActive = false;
+        pc.y = -45.0;
       }
     }
 
@@ -2417,14 +2471,25 @@
     }
 
     // 14. PEDESTRES CONFORME O CTB (ART. 68 E 69 — NUNCA TRANSITAM NO MEIO DA VIA)
-    if (stage.isUrban && stage.hasPedestrians) {
-      const halfW = stage.roadWidth * 0.5;
-      const leftSidewalkX = -(halfW + 1.25);
-      const rightSidewalkX = +(halfW + 1.25);
+    const halfW = stage.roadWidth * 0.5;
+    const leftSidewalkX = -(halfW + 1.25);
+    const rightSidewalkX = +(halfW + 1.25);
 
+    // Faixa zebrada correspondente ao cenário
+    if (stage.id === 'escolar') {
+      roadState.crosswalk.y = roadState.trafficWarden.y;
+    } else if (stage.id === 'coletora') {
+      roadState.crosswalk.y = roadState.intersection.y - 2.0;
+    } else if (stage.id === 'arterial') {
+      roadState.crosswalk.y = roadState.trafficLight.y - 1.7;
+    } else {
+      roadState.crosswalk.y = -999.0;
+    }
+
+    if (stage.isUrban && stage.hasPedestrians) {
       roadState.pedestrians.forEach(ped => {
         ped.animFrame += dt * 4.0;
-        if (ped.isCrossing) {
+        if (ped.isCrossing && roadState.crosswalk.y > -10.0 && roadState.crosswalk.y < 55.0) {
           // Travessia EXCLUSIVAMENTE sobre a faixa de pedestres (Art. 69 do CTB)
           ped.y = roadState.crosswalk.y;
 
@@ -2436,11 +2501,11 @@
           if (isTrafficStopped || Math.abs(ped.x) < (halfW - 0.2)) {
             // Travessia ativa sobre a faixa zebrada
             ped.x += ped.speed * ped.dir * dt;
-            if (ped.x > (halfW + 1.2)) { ped.dir = -1; ped.x = halfW + 1.2; }
-            if (ped.x < -(halfW + 1.2)) { ped.dir = 1; ped.x = -(halfW + 1.2); }
+            if (ped.x > (halfW + 1.1)) { ped.dir = -1; ped.x = halfW + 1.1; }
+            if (ped.x < -(halfW + 1.1)) { ped.dir = 1; ped.x = -(halfW + 1.1); }
           } else {
-            // Aguarda pacientemente no meio-fio da calçada até os veículos pararem
-            ped.x = ped.dir > 0 ? -(halfW + 0.35) : +(halfW + 0.35);
+            // Aguarda pacientemente na calçada até os veículos pararem
+            ped.x = ped.dir > 0 ? -(halfW + 0.95) : +(halfW + 0.95);
           }
 
           if (Math.abs(roadState.crosswalk.y) < 2.5 && Math.abs(ped.x) < (halfW - 0.4) && roadState.speedKmh > 5.0) {
@@ -2450,20 +2515,28 @@
           }
         } else {
           // Pedestres caminhando ESTRITAMENTE pelas calçadas (Art. 68 do CTB — NUNCA na pista de rolamento)
+          ped.isCrossing = false;
           ped.x = (ped.id % 2 === 0) ? rightSidewalkX : leftSidewalkX;
           ped.y -= (speedMs - 1.2) * dt;
           if (ped.y < -18.0) ped.y = 48.0;
         }
       });
+    } else {
+      roadState.pedestrians.forEach(ped => {
+        ped.isCrossing = false;
+        ped.x = (ped.id % 2 === 0) ? rightSidewalkX : leftSidewalkX;
+        ped.y -= (speedMs - 1.2) * dt;
+        if (ped.y < -18.0) ped.y = 48.0;
+      });
     }
 
     // 15. CICLISTA: DISTÂNCIA LATERAL MÍNIMA DE 1,50M (CTB ART. 201)
-    // O ciclista transita estritamente pelo bordo direito da pista conforme Art. 58 do CTB
     const cyc = roadState.cyclist;
     const cycSpeedMs = (cyc.speedKmh * 1000) / 3600;
     cyc.y -= (speedMs - cycSpeedMs) * dt;
     cyc.pedalFrame += dt * 5.0;
     cyc.x = (stage.roadWidth * 0.5) - 0.35; // Bordo direito regulamentar
+    cyc.speedKmh = Math.min(cyc.speedKmh, Math.min(20.0, stage.speedLimit * 0.5));
     if (cyc.y < -35.0) { cyc.y = 42.0; cyc.passedSafely = false; }
     if (cyc.y > 60.0)  cyc.y = -25.0;
 
@@ -2481,6 +2554,8 @@
     const an = roadState.animal;
     an.y -= (speedMs * dt) * 0.95;
     an.tailWag += dt * 8.0;
+    // Permanece estritamente fora do asfalto, no bordo da calçada / acostamento
+    an.x = (stage.roadWidth * 0.5) + (stage.isUrban ? 0.85 : 1.25);
     if (an.y < -20.0) { an.y = 48.0; an.alertTriggered = false; }
 
     if (Math.abs(an.y) < 8.0 && roadState.speedKmh > (stage.speedLimit * 0.85) && !an.alertTriggered) {
@@ -2496,70 +2571,173 @@
     // 18. TRÁFEGO DINÂMICO CONFORME O CTB (TODOS OS VEÍCULOS SEGUEM RIGOROSAMENTE A LEI)
     // ── Determinação das linhas de retenção e parada obrigatória ativas ──
     const stopObstacles = [];
-    if (stage.isUrban && roadState.trafficLight.state === 'red' && roadState.trafficLight.y > -2.0) {
-      stopObstacles.push({ y: roadState.trafficLight.y - 3.5, name: 'Semáforo Vermelho' });
+    if (stage.id === 'arterial' && (roadState.trafficLight.state === 'red' || roadState.trafficLight.state === 'yellow') && roadState.trafficLight.y > -2.0) {
+      stopObstacles.push({ y: roadState.trafficLight.y - 3.2, name: 'Semáforo Vermelho' });
     }
-    if (stage.id === 'ferrovia' && roadState.railCrossing.barrierDown && roadState.railCrossing.y > -2.0) {
-      stopObstacles.push({ y: roadState.railCrossing.y + 4.5, name: 'Cancela Ferroviária' });
+    if (stage.id === 'ferrovia' && (roadState.railCrossing.barrierDown || roadState.railCrossing.trainPassing) && roadState.railCrossing.y > -2.0) {
+      stopObstacles.push({ y: roadState.railCrossing.y - 2.8, name: 'Cancela Ferroviária' });
     }
-    if (stage.id === 'escolar' && roadState.trafficWarden.hasWarden && roadState.trafficWarden.whistleGiven && roadState.trafficWarden.y > -2.0) {
-      stopObstacles.push({ y: roadState.trafficWarden.y + 4.5, name: 'Faixa Escolar' });
+    if (stage.id === 'escolar') {
+      const sb = roadState.schoolBus;
+      if (sb.y > -15.0 && sb.y < 55.0) {
+        stopObstacles.push({ y: sb.y - 4.2, lane: 1, name: 'Ônibus Escolar Parado' });
+      }
+      const tw = roadState.trafficWarden;
+      const anyKidCrossing = roadState.schoolChildren.some(k => Math.abs(k.x) < stage.roadWidth * 0.5);
+      if ((tw.hasWarden && tw.whistleGiven) || anyKidCrossing) {
+        stopObstacles.push({ y: tw.y - 2.0, name: 'Faixa Escolar' });
+      }
     }
-    if (stage.id === 'coletora' && roadState.intersection.y > 0 && roadState.intersection.y < 35.0) {
-      stopObstacles.push({ y: roadState.intersection.y - 3.0, name: 'Placa PARE' });
+    if (stage.id === 'coletora') {
+      const inter = roadState.intersection;
+      if (inter.y > -2.0 && inter.y < 45.0) {
+        stopObstacles.push({ y: inter.y - 3.5, name: 'Placa PARE', isPare: true });
+      }
+      const eld = roadState.elderlyPedestrian;
+      if (eld.active && Math.abs(eld.x) < (stage.roadWidth * 0.5 - 0.2)) {
+        stopObstacles.push({ y: roadState.crosswalk.y - 2.0, name: 'Idoso na Faixa' });
+      }
+    }
+    if (stage.id === 'arterial' || stage.id === 'coletora') {
+      const anyPedCrossing = roadState.pedestrians.some(p => p.isCrossing && Math.abs(p.x) < (stage.roadWidth * 0.5 - 0.2));
+      if (anyPedCrossing && roadState.crosswalk.y > -2.0) {
+        stopObstacles.push({ y: roadState.crosswalk.y - 2.0, name: 'Pedestre na Faixa' });
+      }
     }
 
     // Helper para verificar parada obrigatória adiante de qualquer veículo
-    function getVehicleTargetSpeed(vY, maxLegalSpeed) {
+    function getVehicleTargetSpeed(v, maxLegalSpeed) {
+      const halfL = (v.l || 4.3) * 0.5;
+      let targetSpd = maxLegalSpeed;
       for (let i = 0; i < stopObstacles.length; i++) {
-        const obsY = stopObstacles[i].y;
-        if (obsY > vY) {
-          const distToStop = obsY - vY;
-          if (distToStop < 32.0) {
-            if (distToStop <= 1.2) return 0;
-            return Math.max(0, maxLegalSpeed * (distToStop / 30.0));
+        const obs = stopObstacles[i];
+        if (obs.lane !== undefined && v.lane !== undefined && obs.lane !== v.lane) continue;
+        if (obs.isPare && v.pareDone) continue;
+
+        const targetCenterY = obs.y - halfL - 0.35;
+        if (targetCenterY > v.y) {
+          const dist = targetCenterY - v.y;
+          if (dist < 30.0) {
+            if (dist <= 0.25) {
+              targetSpd = 0;
+            } else {
+              targetSpd = Math.min(targetSpd, maxLegalSpeed * Math.max(0, dist / 22.0));
+            }
           }
         }
       }
-      return maxLegalSpeed;
+
+      // Ciclista no bordo direito: se o veículo compartilha o corredor lateral, respeita 1,50m e não ultrapassa
+      if (stage.isUrban) {
+        const c = roadState.cyclist;
+        const latGap = Math.abs(v.x - c.x) - (v.w * 0.5) - 0.3;
+        if (latGap < 1.55) {
+          const safeY = c.y - halfL - 1.8;
+          if (safeY > v.y && (safeY - v.y) < 25.0) {
+            targetSpd = Math.min(targetSpd, c.speedKmh);
+          }
+        }
+      }
+
+      return targetSpd;
     }
 
-    // ── Configuração das Faixas Regulamentares de Trânsito ──
-    if (stage.lanes === 2) {
-      roadState.leftCar.lane = 0;
-      roadState.leftCar.active = true;
-      roadState.frontCar.lane = 1;
-      roadState.frontCar.active = true;
-      roadState.rearCar.lane = 1;
-      roadState.rearCar.active = true;
-      roadState.rightCar.active = false;
-      roadState.truck.active = false;
-      roadState.motorcycle.active = false;
-    } else if (stage.lanes === 3) {
-      roadState.leftCar.lane = 0;
-      roadState.leftCar.active = true;
-      roadState.frontCar.lane = 1;
-      roadState.frontCar.active = true;
-      roadState.rearCar.lane = 1;
-      roadState.rearCar.active = true;
-      roadState.rightCar.lane = 2;
-      roadState.rightCar.active = true;
-      roadState.truck.lane = 2;
-      roadState.truck.active = (stage.id === 'rodovia');
-      roadState.motorcycle.active = false;
+    function enforceVehicleConstraints(v) {
+      const halfL = (v.l || 4.3) * 0.5;
+      for (let i = 0; i < stopObstacles.length; i++) {
+        const obs = stopObstacles[i];
+        if (obs.lane !== undefined && v.lane !== undefined && obs.lane !== v.lane) continue;
+        if (obs.isPare && v.pareDone) continue;
+
+        const targetCenterY = obs.y - halfL - 0.35;
+        if (v.y > targetCenterY && v.y < obs.y + 2.0 && v.speedKmh < 3.0) {
+          v.y = targetCenterY;
+          v.speedKmh = 0;
+          if (obs.isPare) {
+            v.pareWait = (v.pareWait || 0) + dt;
+            const cc = roadState.intersection.crossingCar;
+            const isCrossingClear = Math.abs(cc.x) > (stage.roadWidth * 0.5 + 2.0) || cc.x < -10.0;
+            if (v.pareWait > 1.2 && isCrossingClear) {
+              v.pareDone = true;
+            }
+          }
+        }
+      }
+
+      // Travar ultrapassagem ilegal de ciclista a menos de 1,50m (Art. 201)
+      if (stage.isUrban) {
+        const c = roadState.cyclist;
+        const latGap = Math.abs(v.x - c.x) - (v.w * 0.5) - 0.3;
+        if (latGap < 1.55) {
+          const safeRearY = c.y - halfL - 1.25;
+          const safeFrontY = c.y + halfL + 1.25;
+          if (v.y > safeRearY && v.y < safeFrontY) {
+            if (v.y <= c.y) {
+              v.y = safeRearY;
+              v.speedKmh = Math.min(v.speedKmh, c.speedKmh);
+            } else {
+              v.y = safeFrontY;
+            }
+          }
+        }
+      }
+    }
+
+    // ── Configuração das Faixas Regulamentares de Trânsito (CTB Art. 29 & 186) ──
+    const nOnc = Math.max(1, Math.floor(stage.lanes / 2));
+    if (roadState.isTwoWay) {
+      // Sentido oposto ativo: faixas < nOnc pertencem à contramão regulamentar
+      roadState.oncomingCar.active = true;
+      roadState.oncomingCar.lane = 0;
+      roadState.oncomingCar.x = getLaneCenterX(stage, 0);
+      roadState.oncomingCar.speedKmh = Math.min(roadState.oncomingCar.speedKmh, stage.speedLimit * 0.88);
+
+      if (stage.lanes === 2) {
+        roadState.leftCar.active = false;
+        roadState.frontCar.lane = 1; roadState.frontCar.active = true;
+        roadState.rearCar.lane = 1;  roadState.rearCar.active = true;
+        roadState.rightCar.active = false;
+        roadState.truck.active = false;
+        roadState.motorcycle.active = false;
+      } else if (stage.lanes === 3) {
+        roadState.leftCar.lane = 1;  roadState.leftCar.active = true;
+        roadState.frontCar.lane = 1; roadState.frontCar.active = true;
+        roadState.rearCar.lane = 1;  roadState.rearCar.active = true;
+        roadState.rightCar.lane = 2; roadState.rightCar.active = true;
+        roadState.truck.lane = 2;    roadState.truck.active = (stage.id === 'rodovia');
+        roadState.motorcycle.active = false;
+      } else {
+        roadState.leftCar.lane = 2;  roadState.leftCar.active = true;
+        roadState.frontCar.lane = 2; roadState.frontCar.active = true;
+        roadState.rearCar.lane = 2;  roadState.rearCar.active = true;
+        roadState.motorcycle.lane = 2; roadState.motorcycle.active = true;
+        roadState.rightCar.lane = 3; roadState.rightCar.active = true;
+        roadState.truck.lane = 3;    roadState.truck.active = (stage.id === 'rapida' || stage.id === 'arterial');
+      }
     } else {
-      roadState.leftCar.lane = 0;
-      roadState.leftCar.active = true;
-      roadState.motorcycle.lane = 1;
-      roadState.motorcycle.active = true;
-      roadState.frontCar.lane = 2;
-      roadState.frontCar.active = true;
-      roadState.rearCar.lane = 2;
-      roadState.rearCar.active = true;
-      roadState.rightCar.lane = 3;
-      roadState.rightCar.active = true;
-      roadState.truck.lane = 3;
-      roadState.truck.active = (stage.id === 'rapida' || stage.id === 'arterial');
+      // Sentido único
+      if (stage.lanes === 2) {
+        roadState.leftCar.lane = 0; roadState.leftCar.active = true;
+        roadState.frontCar.lane = 1; roadState.frontCar.active = true;
+        roadState.rearCar.lane = 1;  roadState.rearCar.active = true;
+        roadState.rightCar.active = false;
+        roadState.truck.active = false;
+        roadState.motorcycle.active = false;
+      } else if (stage.lanes === 3) {
+        roadState.leftCar.lane = 0; roadState.leftCar.active = true;
+        roadState.frontCar.lane = 1; roadState.frontCar.active = true;
+        roadState.rearCar.lane = 1;  roadState.rearCar.active = true;
+        roadState.rightCar.lane = 2; roadState.rightCar.active = true;
+        roadState.truck.lane = 2;    roadState.truck.active = (stage.id === 'rodovia');
+        roadState.motorcycle.active = false;
+      } else {
+        roadState.leftCar.lane = 0; roadState.leftCar.active = true;
+        roadState.motorcycle.lane = 1; roadState.motorcycle.active = true;
+        roadState.frontCar.lane = 2; roadState.frontCar.active = true;
+        roadState.rearCar.lane = 2;  roadState.rearCar.active = true;
+        roadState.rightCar.lane = 3; roadState.rightCar.active = true;
+        roadState.truck.lane = 3;    roadState.truck.active = (stage.id === 'rapida' || stage.id === 'arterial');
+      }
     }
 
     // Alinhamento suave dos veículos da IA no centro de suas faixas
@@ -2572,7 +2750,7 @@
 
     // ── 1. Veículo à Frente (frontCar) ──
     const frontLegalMax = stage.speedLimit * 0.90;
-    const frontTargetSpd = getVehicleTargetSpeed(roadState.frontCar.y, frontLegalMax);
+    const frontTargetSpd = getVehicleTargetSpeed(roadState.frontCar, frontLegalMax);
     if (frontTargetSpd < roadState.frontCar.speedKmh) {
       roadState.frontCar.speedKmh = Math.max(0, roadState.frontCar.speedKmh - 34.0 * dt);
       roadState.frontBraking = true;
@@ -2580,74 +2758,83 @@
       roadState.frontCar.speedKmh += (frontTargetSpd - roadState.frontCar.speedKmh) * 2.8 * dt;
       roadState.frontBraking = false;
     }
+    roadState.frontCar.speedKmh = Math.min(roadState.frontCar.speedKmh, frontLegalMax);
     const speedDiffFront = (roadState.speedKmh - roadState.frontCar.speedKmh) * (1000 / 3600);
     roadState.frontCar.y -= speedDiffFront * dt;
+    enforceVehicleConstraints(roadState.frontCar);
     if (roadState.frontCar.y > 60.0) roadState.frontCar.y = 60.0;
-    if (roadState.frontCar.y < -15.0) roadState.frontCar.y = 48.0;
+    if (roadState.frontCar.y < -15.0) { roadState.frontCar.y = 48.0; roadState.frontCar.pareDone = false; }
 
     // ── 2. Veículo da Esquerda (leftCar) ──
     if (roadState.leftCar.active) {
-      const leftLegalMax = stage.speedLimit * 0.96;
-      const leftTargetSpd = getVehicleTargetSpeed(roadState.leftCar.y, leftLegalMax);
+      const leftLegalMax = stage.speedLimit * 0.90;
+      const leftTargetSpd = getVehicleTargetSpeed(roadState.leftCar, leftLegalMax);
       if (leftTargetSpd < roadState.leftCar.speedKmh) {
         roadState.leftCar.speedKmh = Math.max(0, roadState.leftCar.speedKmh - 34.0 * dt);
       } else {
         roadState.leftCar.speedKmh += (leftTargetSpd - roadState.leftCar.speedKmh) * 2.8 * dt;
       }
+      roadState.leftCar.speedKmh = Math.min(roadState.leftCar.speedKmh, leftLegalMax);
       const leftSpeedDiff = (roadState.speedKmh - roadState.leftCar.speedKmh) * (1000 / 3600);
       roadState.leftCar.y -= leftSpeedDiff * dt;
-      if (roadState.leftCar.y < -38.0) roadState.leftCar.y = 45.0;
+      enforceVehicleConstraints(roadState.leftCar);
+      if (roadState.leftCar.y < -38.0) { roadState.leftCar.y = 45.0; roadState.leftCar.pareDone = false; }
       if (roadState.leftCar.y > 60.0)  roadState.leftCar.y = -35.0;
     }
 
     // ── 3. Veículo da Direita (rightCar) ──
     if (roadState.rightCar.active) {
       const rightLegalMax = stage.speedLimit * 0.84;
-      const rightTargetSpd = getVehicleTargetSpeed(roadState.rightCar.y, rightLegalMax);
+      const rightTargetSpd = getVehicleTargetSpeed(roadState.rightCar, rightLegalMax);
       if (rightTargetSpd < roadState.rightCar.speedKmh) {
         roadState.rightCar.speedKmh = Math.max(0, roadState.rightCar.speedKmh - 34.0 * dt);
       } else {
         roadState.rightCar.speedKmh += (rightTargetSpd - roadState.rightCar.speedKmh) * 2.8 * dt;
       }
+      roadState.rightCar.speedKmh = Math.min(roadState.rightCar.speedKmh, rightLegalMax);
       const rightDiff = (roadState.speedKmh - roadState.rightCar.speedKmh) * (1000 / 3600);
       roadState.rightCar.y -= rightDiff * dt;
-      if (roadState.rightCar.y < -38.0) roadState.rightCar.y = 45.0;
+      enforceVehicleConstraints(roadState.rightCar);
+      if (roadState.rightCar.y < -38.0) { roadState.rightCar.y = 45.0; roadState.rightCar.pareDone = false; }
       if (roadState.rightCar.y > 60.0)  roadState.rightCar.y = -35.0;
     }
 
     // ── 4. Veículo Traseiro (rearCar) — Guarda distância rigorosa (Art. 192 CTB) ──
     const rearSafeGap = 8.5;
     if (Math.abs(roadState.rearCar.y) < rearSafeGap || roadState.speedKmh < roadState.rearCar.speedKmh) {
-      // O veículo de trás freia imediatamente para nunca colidir na traseira do condutor
       roadState.rearCar.speedKmh = Math.max(0, roadState.speedKmh - 4.0);
       if (roadState.rearCar.y > -5.8) roadState.rearCar.y = -5.8;
     } else {
       roadState.rearCar.speedKmh += (roadState.speedKmh - roadState.rearCar.speedKmh) * 2.5 * dt;
     }
+    roadState.rearCar.speedKmh = Math.min(roadState.rearCar.speedKmh, stage.speedLimit * 0.90);
     const rearDiff = (roadState.rearCar.speedKmh - roadState.speedKmh) * (1000 / 3600);
     roadState.rearCar.y += rearDiff * dt;
+    enforceVehicleConstraints(roadState.rearCar);
     if (roadState.rearCar.y > -5.8) roadState.rearCar.y = -5.8;
     if (roadState.rearCar.y < -35.0) roadState.rearCar.y = -18.0;
 
     // ── 5. Caminhão Pesado / Carreta (truck — CTB Art. 61 e 185) ──
     if (roadState.truck.active) {
       const trkLimit = stage.id === 'rodovia' ? 80.0 : (stage.id === 'rapida' ? 70.0 : 50.0);
-      const trkTargetSpd = getVehicleTargetSpeed(roadState.truck.y, trkLimit);
+      const trkTargetSpd = getVehicleTargetSpeed(roadState.truck, trkLimit);
       if (trkTargetSpd < roadState.truck.speedKmh) {
         roadState.truck.speedKmh = Math.max(0, roadState.truck.speedKmh - 26.0 * dt);
       } else {
         roadState.truck.speedKmh += (trkTargetSpd - roadState.truck.speedKmh) * 2.0 * dt;
       }
+      roadState.truck.speedKmh = Math.min(roadState.truck.speedKmh, trkLimit);
       const trkDiff = (roadState.speedKmh - roadState.truck.speedKmh) * (1000 / 3600);
       roadState.truck.y -= trkDiff * dt;
-      if (roadState.truck.y < -42.0) roadState.truck.y = 52.0;
+      enforceVehicleConstraints(roadState.truck);
+      if (roadState.truck.y < -42.0) { roadState.truck.y = 52.0; roadState.truck.pareDone = false; }
       if (roadState.truck.y > 65.0)  roadState.truck.y = -38.0;
     }
 
     // ── 6. Motocicleta (motorcycle — CTB Art. 29 e 40) ──
     if (roadState.motorcycle.active) {
-      const motoLimit = stage.speedLimit * 0.92;
-      const motoTargetSpd = getVehicleTargetSpeed(roadState.motorcycle.y, motoLimit);
+      const motoLimit = stage.speedLimit * 0.90;
+      const motoTargetSpd = getVehicleTargetSpeed(roadState.motorcycle, motoLimit);
       if (motoTargetSpd < roadState.motorcycle.speedKmh) {
         roadState.motorcycle.speedKmh = Math.max(0, roadState.motorcycle.speedKmh - 36.0 * dt);
         roadState.motorcycle.braking = true;
@@ -2655,29 +2842,178 @@
         roadState.motorcycle.speedKmh += (motoTargetSpd - roadState.motorcycle.speedKmh) * 3.2 * dt;
         roadState.motorcycle.braking = false;
       }
+      roadState.motorcycle.speedKmh = Math.min(roadState.motorcycle.speedKmh, motoLimit);
       const motoDiff = (roadState.speedKmh - roadState.motorcycle.speedKmh) * (1000 / 3600);
       roadState.motorcycle.y -= motoDiff * dt;
-      if (roadState.motorcycle.y < -38.0) roadState.motorcycle.y = 48.0;
+      enforceVehicleConstraints(roadState.motorcycle);
+      if (roadState.motorcycle.y < -38.0) { roadState.motorcycle.y = 48.0; roadState.motorcycle.pareDone = false; }
       if (roadState.motorcycle.y > 60.0)  roadState.motorcycle.y = -32.0;
     }
 
-    // ── 7. Distância Segura entre os Veículos da IA (Nenhum veículo sobrepõe outro) ──
+    // ── 7. Distância Segura entre os Veículos da IA (Nenhum veículo sobrepõe outro — Art. 192) ──
     const allAiCars = [roadState.frontCar, roadState.leftCar, roadState.rightCar, roadState.truck, roadState.motorcycle].filter(v => v && v.active !== false);
     for (let i = 0; i < allAiCars.length; i++) {
       for (let j = i + 1; j < allAiCars.length; j++) {
         const c1 = allAiCars[i];
         const c2 = allAiCars[j];
-        if (Math.abs(c1.x - c2.x) < 1.9 && Math.abs(c1.y - c2.y) < 7.5) {
-          if (c1.y > c2.y) {
-            c2.y = c1.y - 7.5;
-            c2.speedKmh = Math.min(c2.speedKmh, c1.speedKmh);
-          } else {
-            c1.y = c2.y - 7.5;
-            c1.speedKmh = Math.min(c1.speedKmh, c2.speedKmh);
+        const latDist = Math.abs(c1.x - c2.x);
+        const minLat = ((c1.w || 1.8) + (c2.w || 1.8)) * 0.5 + 0.35;
+        if (latDist < minLat) {
+          const minLong = ((c1.l || 4.3) + (c2.l || 4.3)) * 0.5 + 2.5;
+          const longDist = Math.abs(c1.y - c2.y);
+          if (longDist < minLong) {
+            if (c1.y > c2.y) {
+              c2.y = c1.y - minLong;
+              c2.speedKmh = Math.min(c2.speedKmh, c1.speedKmh);
+            } else {
+              c1.y = c2.y - minLong;
+              c1.speedKmh = Math.min(c1.speedKmh, c2.speedKmh);
+            }
           }
         }
       }
     }
+
+    // Veículos em sentido contrário (oncomingCar) nunca colidem com veículos da IA
+    if (roadState.isTwoWay && roadState.oncomingCar.active) {
+      const oc = roadState.oncomingCar;
+      allAiCars.forEach(v => {
+        const minLat = ((v.w || 1.8) + oc.w) * 0.5 + 0.35;
+        const minLong = ((v.l || 4.3) + oc.l) * 0.5 + 2.5;
+        if (Math.abs(v.x - oc.x) < minLat && Math.abs(v.y - oc.y) < minLong) {
+          if (v.y > oc.y) {
+            v.y = oc.y + minLong;
+          } else {
+            v.y = oc.y - minLong;
+          }
+        }
+      });
+    }
+
+    // Ônibus escolar parado: nenhum carro pode sobrepô-lo (R13)
+    if (stage.id === 'escolar') {
+      const sb = roadState.schoolBus;
+      allAiCars.forEach(v => {
+        if (Math.abs(v.x - sb.x) < ((v.w || 1.8) + sb.w) * 0.5 + 0.25) {
+          const minLong = ((v.l || 4.3) + sb.l) * 0.5 + 2.2;
+          if (v.y < sb.y && (sb.y - v.y) < minLong) {
+            v.y = sb.y - minLong;
+            v.speedKmh = 0;
+          }
+        }
+      });
+    }
+
+    // Veículo transversal do cruzamento (R07b)
+    if (stage.id === 'coletora') {
+      const cc = roadState.intersection.crossingCar;
+      const ccBox = { x: cc.x, y: roadState.intersection.y, w: 4.2, l: 1.85 };
+      allAiCars.forEach(v => {
+        if (Math.abs(v.x - ccBox.x) < ((v.w || 1.8) + ccBox.w) * 0.5 && Math.abs(v.y - ccBox.y) < ((v.l || 4.3) + ccBox.l) * 0.5 + 0.5) {
+          if (v.y < ccBox.y) {
+            v.y = ccBox.y - ((v.l || 4.3) + ccBox.l) * 0.5 - 0.8;
+            v.speedKmh = 0;
+          }
+        }
+      });
+    }
+
+    // Comportamento do veículo em sentido contrário (oncomingCar) conforme o CTB
+    if (roadState.isTwoWay && roadState.oncomingCar.active) {
+      const oc = roadState.oncomingCar;
+      if (stage.id === 'coletora') {
+        const inter = roadState.intersection;
+        // Parada obrigatória no cruzamento coletora (Art. 208)
+        const stopY = inter.y + 3.5 + (oc.l * 0.5) + 0.35;
+        if (oc.y > stopY && (oc.y - stopY) < 25.0 && !oc.pareDone) {
+          oc.speedKmh = Math.min(oc.speedKmh, 20.0 * Math.max(0, (oc.y - stopY) / 18.0));
+          if (oc.y <= stopY + 0.2) {
+            oc.y = stopY;
+            oc.speedKmh = 0;
+            oc.pareWait = (oc.pareWait || 0) + dt;
+            const cc = inter.crossingCar;
+            const isCrossingClear = Math.abs(cc.x) > (stage.roadWidth * 0.5 + 2.0) || cc.x < -10.0;
+            if (oc.pareWait > 1.2 && isCrossingClear) {
+              oc.pareDone = true;
+            }
+          }
+        }
+        if (oc.y < inter.y - 12.0) { oc.pareDone = false; oc.pareWait = 0; }
+
+        // Parada para pedestre idoso na faixa (Art. 214)
+        const eld = roadState.elderlyPedestrian;
+        if (eld.active && Math.abs(eld.x) < stage.roadWidth * 0.5 - 0.2) {
+          const cwStopY = roadState.crosswalk.y + 2.0 + (oc.l * 0.5) + 0.35;
+          if (oc.y > cwStopY && (oc.y - cwStopY) < 25.0) {
+            oc.speedKmh = Math.min(oc.speedKmh, 20.0 * Math.max(0, (oc.y - cwStopY) / 18.0));
+            if (oc.y <= cwStopY + 0.2) {
+              oc.y = cwStopY;
+              oc.speedKmh = 0;
+            }
+          }
+        }
+
+        // Não colidir com veículo transversal (Art. 29 - R07b)
+        const cc = inter.crossingCar;
+        const ccBox = { x: cc.x, y: inter.y, w: 4.2, l: 1.85 };
+        if (Math.abs(oc.x - ccBox.x) < (oc.w + ccBox.w) * 0.5 && Math.abs(oc.y - ccBox.y) < (oc.l + ccBox.l) * 0.5 + 0.5) {
+          if (oc.y > ccBox.y) {
+            oc.y = ccBox.y + (oc.l + ccBox.l) * 0.5 + 0.8;
+            oc.speedKmh = 0;
+          }
+        }
+      }
+
+      if (stage.id === 'arterial') {
+        // Parada para pedestre na faixa (Art. 214)
+        const anyCrossing = roadState.pedestrians.some(p => p.isCrossing && Math.abs(p.x) < stage.roadWidth * 0.5 - 0.2);
+        if (anyCrossing) {
+          const cwStopY = roadState.crosswalk.y + 2.0 + (oc.l * 0.5) + 0.35;
+          if (oc.y > cwStopY && (oc.y - cwStopY) < 25.0) {
+            oc.speedKmh = Math.min(oc.speedKmh, 20.0 * Math.max(0, (oc.y - cwStopY) / 18.0));
+            if (oc.y <= cwStopY + 0.2) {
+              oc.y = cwStopY;
+              oc.speedKmh = 0;
+            }
+          }
+        }
+      }
+    }
+
+    // Proteção rigorosa contra colisão da IA na traseira do aluno (Art. 192 CTB - R04)
+    allAiCars.forEach(v => {
+      if (v.y < 0 && Math.abs(v.x - roadState.playerX) < ((v.w || 1.8) + VEHICLE.width) * 0.5 + 0.25) {
+        const minSafeRearY = -((v.l || 4.3) + VEHICLE.length) * 0.5 - 0.5;
+        if (v.y > minSafeRearY) {
+          v.y = minSafeRearY;
+          v.speedKmh = Math.min(v.speedKmh, roadState.speedKmh);
+        }
+      }
+    });
+
+    // Viaturas de emergência nunca atravessam outros veículos (R14)
+    const allCarsForEv = allAiCars.concat(roadState.isTwoWay && roadState.oncomingCar.active ? [roadState.oncomingCar] : []);
+    [roadState.ambulance, roadState.policeCruiser].forEach(ev => {
+      if (!ev.active) return;
+      if (ev === roadState.policeCruiser && !ev.isPursuing) return;
+      // Garante que viatura de emergência transita na mão correta em pista de mão dupla
+      if (roadState.isTwoWay && Math.abs(ev.x - roadState.oncomingCar.x) < 1.8) {
+        ev.x = getLaneCenterX(stage, nOnc);
+      }
+      allCarsForEv.forEach(v => {
+        const minLat = ((v.w || 1.8) + (ev.w || 2.0)) * 0.5 + 0.25;
+        const minLong = ((v.l || 4.3) + (ev.l || 5.0)) * 0.5 + 1.2;
+        if (Math.abs(v.x - ev.x) < minLat && Math.abs(v.y - ev.y) < minLong) {
+          if (ev.y < v.y) {
+            ev.y = v.y - minLong;
+            ev.speedKmh = Math.min(ev.speedKmh, v.speedKmh);
+          } else {
+            v.y = ev.y - minLong;
+            v.speedKmh = Math.min(v.speedKmh, ev.speedKmh);
+          }
+        }
+      });
+    });
 
     // 19. FÍSICA DE COLISÃO REALISTA & ATRIBUIÇÃO DE RESPONSABILIDADE (CTB ART. 192)
     // Nenhum carro pode passar por cima do outro, nem pelas laterais
@@ -2782,7 +3118,9 @@
           faultText = 'VEÍCULO TRASEIRO (Não guardou distância regulamentar - Condutor isento de culpa)';
         } else {
           // rightCar ou leftCar
-          if (Math.abs(roadState.steerAngle) > 2.0 || Math.abs(roadState.playerX) > 0.85) {
+          const curLaneCenter = getLaneCenterX(stage, roadState.playerLane);
+          const latDev = Math.abs(roadState.playerX - curLaneCenter);
+          if (Math.abs(roadState.steerAngle) > 2.0 || latDev > 0.85) {
             isPlayerAtFault = true;
             faultText = 'CONDUTOR (Mudança de faixa com abalroamento lateral culposo - Art. 192/197 CTB)';
           } else {
@@ -2854,11 +3192,15 @@
 
     if (roadState.isTwoWay) {
       const oc = roadState.oncomingCar;
+      oc.speedKmh = Math.min(oc.speedKmh, stage.speedLimit * 0.88);
+      oc.x = getLaneCenterX(stage, 0);
       const ocSpeedMs = (oc.speedKmh * 1000) / 3600;
       oc.y -= (speedMs + ocSpeedMs) * dt;
-      if (oc.y < -25.0) oc.y = 52.0;
+      if (oc.y < -35.0) oc.y = 52.0;
 
-      const isPlayerInContramao = roadState.playerX < -0.35;
+      const nOnc = Math.max(1, Math.floor(stage.lanes / 2));
+      const twoWayDivider = -(stage.roadWidth * 0.5) + nOnc * (stage.roadWidth / stage.lanes);
+      const isPlayerInContramao = roadState.playerX < (twoWayDivider - 0.35);
       if (isPlayerInContramao) {
         if (oc.y > 0 && oc.y < 35.0) {
           oc.flashLights = true;
@@ -2929,7 +3271,7 @@
     } else if (frontWarning) {
       roadState.statusLevel = 'yellow';
       roadState.statusText = `🟡 APROXIMAÇÃO FRONTAL (${frontDist.toFixed(1)}m) — Reduza a velocidade e guarde distância segura.`;
-    } else if (!roadState.isTwoWay || roadState.playerX >= -0.35) {
+    } else if (!roadState.isTwoWay || roadState.playerX >= (-(stage.roadWidth * 0.5) + Math.max(1, Math.floor(stage.lanes / 2)) * (stage.roadWidth / stage.lanes) - 0.35)) {
       roadState.statusLevel = 'green';
       roadState.statusText = `🟢 SINAL VERDE — Distância Segura e Faixa Desimpedida (Art. 192 CTB)`;
     }
@@ -3634,7 +3976,7 @@
     }
 
     // ── SITUAÇÃO 2: IDOSO COM BENGALA (ACESSIBILIDADE & PRIORIDADE - CTB ART. 214-II) ──
-    if (stage.isUrban && rs.elderlyPedestrian.y > -10 && rs.elderlyPedestrian.y < 45) {
+    if (stage.isUrban && rs.elderlyPedestrian.active && rs.elderlyPedestrian.y > -10 && rs.elderlyPedestrian.y < 45) {
       const ep = rs.elderlyPedestrian;
       const epX = wx(ep.x);
       const epY = wy(ep.y);
@@ -3951,18 +4293,19 @@
 
     // 9. Sinal de velocidade pintado no asfalto (R-19)
     const signY = 22 - (rs.roadScrollY % 24);
+    const signX = getLaneCenterX(stage, getPlayerDefaultLane(stage));
     ctx.save();
     ctx.strokeStyle = '#e74c3c';
     ctx.fillStyle = '#ffffff';
     ctx.lineWidth = Math.max(2, wl(0.15));
     ctx.beginPath();
-    ctx.arc(wx(0), wy(signY), wl(1.1), 0, Math.PI * 2);
+    ctx.arc(wx(signX), wy(signY), wl(1.1), 0, Math.PI * 2);
     ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#111111';
     ctx.font = `bold ${Math.max(9, wl(0.95))}px Manrope, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(stage.speedLimit, wx(0), wy(signY));
+    ctx.fillText(stage.speedLimit, wx(signX), wy(signY));
     ctx.restore();
 
     // 10. Veículos do tráfego (com efeito de colisão: piscam em vermelho por 2s)
@@ -6078,11 +6421,22 @@
       if (ctbBar)     ctbBar.style.display     = 'flex';
       if (sitPanel)   sitPanel.style.display   = 'block';
 
+      const stg0 = ROAD_STAGES[0];
+      const defLane = getPlayerDefaultLane(stg0);
       roadState.stageIndex = 0;
       roadState.stageTimer = 25.0;
-      roadState.playerX = 0;
-      roadState.speedKmh = ROAD_STAGES[0].speedLimit;
-      roadState.targetSpeedKmh = ROAD_STAGES[0].speedLimit;
+      roadState.playerLane = defLane;
+      roadState.lastLaneIndex = defLane;
+      roadState.playerX = getLaneCenterX(stg0, defLane);
+      roadState.speedKmh = stg0.speedLimit;
+      roadState.targetSpeedKmh = stg0.speedLimit;
+      roadState.steerAngle = 0;
+      roadState.frontCar.lane = defLane;
+      roadState.frontCar.x = getLaneCenterX(stg0, defLane);
+      roadState.rearCar.lane = defLane;
+      roadState.rearCar.x = getLaneCenterX(stg0, defLane);
+      roadState.leftCar.lane = 0;
+      roadState.leftCar.x = getLaneCenterX(stg0, 0);
       roadState.rightCar.y = 0.5;
       roadState.frontCar.y = 19.0;
       roadState.leftCar.y = -28.0;
@@ -6636,10 +6990,14 @@
     if (fatalModal) fatalModal.style.display = 'none';
 
     if (currentScenario === 'direcao-vias' || currentScenario === 'cidade-ctb') {
+      const stg0 = ROAD_STAGES[0];
+      const defLane = getPlayerDefaultLane(stg0);
       roadState.stageIndex = 0;
       roadState.stageTimer = 25.0;
-      roadState.playerX = 0;
-      const initialLimit = ROAD_STAGES[0].speedLimit;
+      roadState.playerLane = defLane;
+      roadState.lastLaneIndex = defLane;
+      roadState.playerX = getLaneCenterX(stg0, defLane);
+      const initialLimit = stg0.speedLimit;
       roadState.speedKmh = initialLimit;
       roadState.targetSpeedKmh = initialLimit;
       roadState.steerAngle = 0;
@@ -6657,6 +7015,12 @@
       roadState.railCrossing.y = 52.0;
       roadState.railCrossing.hasStopped = false;
       roadState.railCrossing.hasViolated = false;
+      roadState.frontCar.lane = defLane;
+      roadState.frontCar.x = getLaneCenterX(stg0, defLane);
+      roadState.rearCar.lane = defLane;
+      roadState.rearCar.x = getLaneCenterX(stg0, defLane);
+      roadState.leftCar.lane = 0;
+      roadState.leftCar.x = getLaneCenterX(stg0, 0);
       roadState.rightCar.y = 0.5;
       roadState.frontCar.y = 19.0;
       roadState.leftCar.y = -28.0;
@@ -7196,6 +7560,45 @@
       roadState.stageTimer = 25.0;
       const nextStage = ROAD_STAGES[idx];
       roadState.targetSpeedKmh = nextStage.speedLimit;
+      const defLane = getPlayerDefaultLane(nextStage);
+      roadState.playerLane = defLane;
+      roadState.lastLaneIndex = defLane;
+      roadState.playerX = getLaneCenterX(nextStage, defLane);
+      roadState.steerAngle = 0;
+
+      // Restrições de velocidade e segurança estrita do CTB para todos os veículos da IA
+      const maxAiSpd = nextStage.speedLimit * 0.88;
+      if (roadState.frontCar) roadState.frontCar.speedKmh = Math.min(roadState.frontCar.speedKmh, maxAiSpd);
+      if (roadState.leftCar) roadState.leftCar.speedKmh = Math.min(roadState.leftCar.speedKmh, maxAiSpd);
+      if (roadState.rightCar) roadState.rightCar.speedKmh = Math.min(roadState.rightCar.speedKmh, maxAiSpd);
+      if (roadState.rearCar) roadState.rearCar.speedKmh = Math.min(roadState.rearCar.speedKmh, maxAiSpd);
+      if (roadState.motorcycle) roadState.motorcycle.speedKmh = Math.min(roadState.motorcycle.speedKmh, maxAiSpd);
+      if (roadState.oncomingCar) roadState.oncomingCar.speedKmh = Math.min(roadState.oncomingCar.speedKmh, maxAiSpd);
+      if (roadState.truck) roadState.truck.speedKmh = Math.min(roadState.truck.speedKmh, Math.min(maxAiSpd, nextStage.id === 'rodovia' ? 80.0 : 50.0));
+      if (roadState.cyclist) roadState.cyclist.speedKmh = Math.min(roadState.cyclist.speedKmh, Math.min(20.0, nextStage.speedLimit * 0.5));
+
+      // Animal estritamente no acostamento / calçada / bordo externo
+      roadState.animal.x = (nextStage.roadWidth * 0.5) + (nextStage.isUrban ? 0.85 : 1.25);
+
+      // Posicionamento de pedestres e faixas
+      if (stageId === 'escolar') {
+        roadState.crosswalk.y = roadState.trafficWarden.y;
+        roadState.elderlyPedestrian.active = false;
+        roadState.elderlyPedestrian.x = -(nextStage.roadWidth * 0.5 + 2.0);
+      } else if (stageId === 'coletora') {
+        roadState.crosswalk.y = roadState.intersection.y - 2.0;
+        roadState.elderlyPedestrian.active = true;
+        roadState.elderlyPedestrian.y = roadState.crosswalk.y;
+      } else if (stageId === 'arterial') {
+        roadState.crosswalk.y = roadState.trafficLight.y - 1.7;
+        roadState.elderlyPedestrian.active = false;
+        roadState.elderlyPedestrian.x = -(nextStage.roadWidth * 0.5 + 2.0);
+      } else {
+        roadState.crosswalk.y = -999.0;
+        roadState.elderlyPedestrian.active = false;
+        roadState.elderlyPedestrian.x = -(nextStage.roadWidth * 0.5 + 2.0);
+      }
+
       playAlertBeep(false);
       showRoadStageNotification(nextStage);
       updateRoadHudDom(nextStage);
@@ -7204,7 +7607,11 @@
   }
 
   function triggerAmbulance() {
+    const curStage = ROAD_STAGES[roadState.stageIndex];
+    const nOnc = Math.max(1, Math.floor(curStage.lanes / 2));
+    const targetLane = roadState.isTwoWay ? nOnc : (curStage.lanes === 2 ? 0 : 1);
     roadState.ambulance.active = true;
+    roadState.ambulance.x = getLaneCenterX(curStage, targetLane);
     roadState.ambulance.y = -35.0;
     roadState.ambulance.hasYielded = false;
     roadState.ambulance.hasViolated = false;
@@ -7215,10 +7622,13 @@
   }
 
   function triggerPolice() {
+    const curStage = ROAD_STAGES[roadState.stageIndex];
+    const nOnc = Math.max(1, Math.floor(curStage.lanes / 2));
+    const targetLane = roadState.isTwoWay ? nOnc : 0;
     roadState.policeCruiser.active = true;
     roadState.policeCruiser.isPursuing = true;
     roadState.policeCruiser.sirenActive = true;
-    roadState.policeCruiser.x = getLaneCenterX(ROAD_STAGES[roadState.stageIndex], 0);
+    roadState.policeCruiser.x = getLaneCenterX(curStage, targetLane);
     roadState.policeCruiser.y = -35.0;
     roadState.policeCruiser.speedKmh = Math.max(90.0, roadState.speedKmh + 35.0);
     showInstruction('🚓 <b>Viatura Policial / PRF em aproximação com sirene oficial!</b> Desloque seu veículo para a faixa da direita e dê passagem (Art. 189 CTB)!');
@@ -7260,7 +7670,9 @@
     triggerTrain,
     toggleSchoolWarden,
     getRoadStages: () => ROAD_STAGES,
-    getRoadState: () => roadState
+    getRoadState: () => roadState,
+    // Gancho para a auditoria automatizada (tests/simulator-ctb-audit.cjs)
+    _test: { step: (dt) => updateRoadPhysics(dt), vehicle: VEHICLE, getLaneCenterX, getPlayerDefaultLane }
   };
 
 })();
