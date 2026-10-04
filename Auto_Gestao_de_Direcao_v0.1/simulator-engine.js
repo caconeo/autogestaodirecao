@@ -438,13 +438,17 @@
       hasWarden: true,        // true = guarda apitando / false = travessia autônoma
       x: 0,
       y: 33.5,
+      phase: 'approach',      // 'approach' | 'stopping' | 'crossing' | 'releasing' | 'released'
       whistleGiven: false,
       stopSignalActive: true,
+      trafficReleased: false,
+      releaseTimer: 0,
       hasViolated: false
     },
     schoolChildren: [
-      { id: 'c1', x: 2.8, y: 33.5, dir: -1, speed: 0.9, shirt: '#3b82f6', backpack: '#ef4444', isCrossing: true, anim: 0 },
-      { id: 'c2', x: 3.5, y: 33.5, dir: -1, speed: 0.85, shirt: '#ec4899', backpack: '#8b5cf6', isCrossing: true, anim: 0 }
+      { id: 'c1', x: -4.8, y: 33.5, targetX: 4.8, speed: 1.35, shirt: '#3b82f6', backpack: '#ef4444', isCrossing: false, crossed: false, anim: 0 },
+      { id: 'c2', x: -5.6, y: 33.5, targetX: 4.8, speed: 1.25, shirt: '#ec4899', backpack: '#8b5cf6', isCrossing: false, crossed: false, anim: 0 },
+      { id: 'c3', x: -6.4, y: 33.5, targetX: 4.8, speed: 1.15, shirt: '#10b981', backpack: '#f59e0b', isCrossing: false, crossed: false, anim: 0 }
     ],
 
     // ── SITUAÇÃO 2: IDOSO NA FAIXA / ACESSIBILIDADE (CTB Art. 214-II) ──
@@ -748,6 +752,36 @@
       osc.start(now);
       lfo.stop(now + 0.65);
       osc.stop(now + 0.65);
+    } catch (_) {}
+  }
+
+  // Silvo regulamentar GA-02 do CTB: Dois silvos breves (Liberação de trânsito / "Siga")
+  function playOfficerGoWhistle() {
+    try {
+      const ctx = getAudioCtx();
+      if (!ctx) return;
+      const now = ctx.currentTime;
+      [0, 0.20].forEach(offset => {
+        const osc = ctx.createOscillator();
+        const lfo = ctx.createOscillator();
+        const lfoGain = ctx.createGain();
+        const gain = ctx.createGain();
+        lfo.frequency.setValueAtTime(40, now + offset);
+        lfoGain.gain.setValueAtTime(140, now + offset);
+        lfo.connect(osc.frequency);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(2850, now + offset);
+        gain.gain.setValueAtTime(0.001, now + offset);
+        gain.gain.linearRampToValueAtTime(0.16, now + offset + 0.02);
+        gain.gain.setValueAtTime(0.16, now + offset + 0.10);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.16);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        lfo.start(now + offset);
+        osc.start(now + offset);
+        lfo.stop(now + offset + 0.16);
+        osc.stop(now + offset + 0.16);
+      });
     } catch (_) {}
   }
 
@@ -2288,8 +2322,7 @@
       }
     }
 
-    // 8. SEMÁFORO INTELIGENTE (CTB ART. 208 - APENAS NA CIDADE)
-    // 8. SEMÁFORO INTELIGENTE (CTB ART. 208 - APENAS NA VIA ARTERIAL)
+    // 8. SEMÁFORO INTELIGENTE COM BOLSÃO DE MOTOS E LINHA DE RETENÇÃO (CTB ART. 80 E 208 / RES. CONTRAN 985/22)
     if (stage.id === 'arterial') {
       const tl = roadState.trafficLight;
       tl.timer -= dt;
@@ -2311,14 +2344,17 @@
         tl.hasViolated = false;
       }
 
-      // Linha de retenção do semáforo (fica em tl.y - 3.2)
-      const stopLineDist = tl.y - 3.2;
+      // Geometria regulamentar:
+      // Faixa de pedestres: tl.y - 1.8m
+      // Bolsão de espera exclusiva para motocicletas (Moto-Box): entre tl.y - 3.4m e tl.y - 7.2m
+      // Linha de retenção de automóveis e veículos pesados: em tl.y - 7.2m
+      const stopLineDist = tl.y - 7.2;
       if (tl.state === 'red') {
-        if (stopLineDist < 1.0 && stopLineDist > -3.0 && roadState.speedKmh > 5.0 && !tl.hasViolated) {
+        if (stopLineDist < 0.6 && stopLineDist > -4.0 && roadState.speedKmh > 5.0 && !tl.hasViolated) {
           tl.hasViolated = true;
-          issueAit('ART_208', 'Avançou o sinal vermelho do semáforo no cruzamento regulamentado.');
-        } else if (stopLineDist <= 5.0 && stopLineDist >= 1.2 && roadState.speedKmh < 1.0 && !tl.hasViolated) {
-          commendDriver('Excelente conduta! Parada total e segura antes da faixa de retenção no sinal vermelho!', 'Art. 208 do CTB');
+          issueAit('ART_208', 'Avançou o sinal vermelho do semáforo e invadiu o bolsão de motos/faixa de retenção.');
+        } else if (stopLineDist <= 5.0 && stopLineDist >= 0.8 && roadState.speedKmh < 1.0 && !tl.hasViolated) {
+          commendDriver('Excelente conduta! Parada total e segura antes da faixa de retenção no sinal vermelho!', 'Art. 208 do CTB e Res. CONTRAN 985/22');
         }
       }
     }
@@ -2332,44 +2368,86 @@
         sb.hazardTimer = 0;
         sb.hazardBlink = !sb.hazardBlink;
       }
-      if (sb.y < -18.0) sb.y = 48.0;
+      if (sb.y < -18.0) sb.y = 52.0;
 
       const tw = roadState.trafficWarden;
       tw.y = sb.y - 4.5;
       roadState.crosswalk.y = tw.y;
 
-      // Movimentação das crianças na faixa zebrada
-      roadState.schoolChildren.forEach(kid => {
-        kid.y = tw.y;
-        kid.anim += dt * 4.5;
-        kid.x += kid.dir * kid.speed * dt;
-        if (kid.x < -3.2) kid.dir = 1;
-        if (kid.x > 3.2) kid.dir = -1;
-      });
-
-      // AVISO DO GUARDA DE TRÂNSITO (APITO COM SILVO LONGO)
       const distToSchool = tw.y;
-      if (tw.hasWarden && distToSchool > 10.0 && distToSchool < 32.0 && !tw.whistleGiven) {
+
+      // ── MÁQUINA DE ESTADOS REGULAMENTAR DO GUARDA ESCOLAR & TRAVESSIA UNIDIRECIONAL ──
+      // 1. Aproximação dos veículos: guarda vai para o centro e apita silvo GA-01 (parada)
+      if (tw.hasWarden && distToSchool > 8.0 && distToSchool < 35.0 && !tw.whistleGiven) {
         tw.whistleGiven = true;
+        tw.phase = 'stopping';
+        tw.stopSignalActive = true;
+        tw.trafficReleased = false;
         playOfficerStopWhistle();
-        showInstruction('🛑 <b>Guarda Escolar Apitou (Silvo Longo):</b> Ordem de Parada Obrigatória! Crianças descendo do ônibus e atravessando a faixa.');
+        showInstruction('🛑 <b>Guarda Escolar Apitou (Silvo GA-01):</b> Ordem de Parada Obrigatória! Crianças desembarcando.');
+      }
+
+      // 2. Parada dos veículos: guarda autoriza crianças a atravessar (sem ziguezague, da esquerda para direita)
+      const vehiclesStopped = roadState.speedKmh < 1.5 && distToSchool < 32.0;
+      if (tw.phase === 'stopping' && (vehiclesStopped || distToSchool < 8.0)) {
+        tw.phase = 'crossing';
+      }
+
+      if (tw.phase === 'crossing') {
+        let allCrossed = true;
+        roadState.schoolChildren.forEach((kid, idx) => {
+          kid.y = tw.y;
+          kid.anim += dt * 4.5;
+          if (!kid.crossed) {
+            allCrossed = false;
+            kid.isCrossing = true;
+            kid.x += kid.speed * dt * 1.55;
+            if (kid.x >= kid.targetX) {
+              kid.x = kid.targetX;
+              kid.crossed = true;
+              kid.isCrossing = false;
+            }
+          }
+        });
+
+        // 3. Todas as crianças chegaram com segurança à calçada oposta
+        if (allCrossed) {
+          tw.phase = 'releasing';
+          tw.releaseTimer = 1.0;
+        }
+      } else if (tw.phase === 'releasing') {
+        tw.releaseTimer -= dt;
+        if (tw.releaseTimer <= 0) {
+          tw.phase = 'released';
+          tw.stopSignalActive = false;
+          tw.trafficReleased = true;
+          playOfficerGoWhistle(); // GA-02: Dois silvos breves regulamentares de liberação do trânsito!
+          showInstruction('🟢 <b>Guarda de Trânsito Liberou (Silvo GA-02):</b> Trânsito liberado! Siga com atenção (Art. 195 e 220-XIV).');
+        }
+      } else if (tw.phase === 'released') {
+        // Guarda recua para a lateral da via
+        if (tw.x < stage.roadWidth * 0.5 + 0.8) {
+          tw.x += dt * 1.8;
+        }
       }
 
       // Fiscalização na área escolar
-      if (Math.abs(distToSchool) < 3.2) {
+      if (Math.abs(distToSchool) < 4.0) {
         if (roadState.speedKmh > 30.0) {
           issueAit('ART_220_XIV', `Transitou a ${roadState.speedKmh.toFixed(0)} km/h em área escolar (máximo regulamentado: 30 km/h).`);
         }
         if (tw.hasWarden) {
-          if (roadState.speedKmh > 5.0 && !tw.hasViolated) {
+          // Desobediência à ordem de parada do agente
+          if (!tw.trafficReleased && tw.stopSignalActive && roadState.speedKmh > 5.0 && !tw.hasViolated) {
             tw.hasViolated = true;
             issueAit('ART_195', 'Desobedeceu à ordem expressa de parada emanada do Guarda de Trânsito.');
-          } else if (roadState.speedKmh < 1.0 && !tw.hasViolated) {
+          } else if (roadState.speedKmh < 1.0 && !tw.hasViolated && distToSchool >= 0.8) {
             commendDriver('Parada exemplar na área escolar! Respeito absoluto às ordens do guarda e às crianças!', 'Art. 220, XIV do CTB');
           }
         } else {
-          // Sem guarda: travessia autônoma das crianças
-          if (roadState.speedKmh > 8.0 && !tw.hasViolated) {
+          // Sem guarda: preferência direta às crianças
+          const anyKidCrossing = roadState.schoolChildren.some(k => k.isCrossing);
+          if (anyKidCrossing && roadState.speedKmh > 8.0 && !tw.hasViolated) {
             tw.hasViolated = true;
             issueAit('ART_214_I', 'Deixou de dar preferência a crianças em travessia na faixa escolar.');
           } else if (roadState.speedKmh < 1.0 && !tw.hasViolated) {
@@ -2377,9 +2455,23 @@
           }
         }
       }
-      if (distToSchool < -12.0) {
+
+      // Reinício do ciclo quando o ônibus escolar fica para trás
+      if (distToSchool < -15.0) {
         tw.whistleGiven = false;
         tw.hasViolated = false;
+        tw.phase = 'approach';
+        tw.stopSignalActive = true;
+        tw.trafficReleased = false;
+        tw.x = 0;
+        const leftPaveX = -(stage.roadWidth * 0.5 + 1.2);
+        const rightPaveX = stage.roadWidth * 0.5 + 1.2;
+        roadState.schoolChildren.forEach((kid, idx) => {
+          kid.x = leftPaveX - idx * 0.8;
+          kid.targetX = rightPaveX + idx * 0.5;
+          kid.crossed = false;
+          kid.isCrossing = false;
+        });
       }
     }
 
@@ -3712,6 +3804,276 @@
   }
 
   /* ══════════════════════════════════════════════
+     QUARTEIRÕES URBANOS: CASAS, COMÉRCIOS, CALÇADAS E GARAGENS
+     (ENGENHARIA DE TRÁFEGO & CTB - REF. ENG. ROBERTO WATANABE)
+     ══════════════════════════════════════════════ */
+
+  function drawUrbanBlocksTopView(ctx, rs, stage, wx, wy, wl, W, H, roadLeft, roadRight, sideSpan) {
+    if (!stage.isUrban) {
+      // Cenário Rodoviário/Ferroviário: Acostamentos e Vegetação
+      ctx.fillStyle = stage.sideColor;
+      ctx.fillRect(0, 0, wx(roadLeft), H);
+      ctx.fillRect(wx(roadRight), 0, W - wx(roadRight), H);
+      return;
+    }
+
+    const paveW = 3.4; // 3.4m de calçada padrão NBR 9050
+    const leftPaveLeft = roadLeft - paveW;
+    const rightPaveRight = roadRight + paveW;
+    const blockDepth = sideSpan - paveW; // profundidade dos lotes
+
+    // 1. Fundo do Terreno / Lotes
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, W, H);
+
+    // Gramados e recuos dos lotes
+    ctx.fillStyle = '#14251a';
+    ctx.fillRect(0, 0, wx(leftPaveLeft), H);
+    ctx.fillRect(wx(rightPaveRight), 0, W - wx(rightPaveRight), H);
+
+    // 2. Calçadas com ladrilhos e meio-fio de granito
+    const leftPaveX = wx(leftPaveLeft);
+    const leftPavePixelW = wx(roadLeft) - leftPaveX;
+    const rightPaveX = wx(roadRight);
+    const rightPavePixelW = wx(rightPaveRight) - rightPaveX;
+
+    // Piso das calçadas
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(leftPaveX, 0, leftPavePixelW, H);
+    ctx.fillRect(rightPaveX, 0, rightPavePixelW, H);
+
+    // Textura de juntas de piso nas calçadas
+    ctx.strokeStyle = 'rgba(71, 85, 105, 0.4)';
+    ctx.lineWidth = 1;
+    const tileSpacing = 2.2;
+    const tilePhase = (rs.roadScrollY % tileSpacing);
+    for (let ty = -10 + tilePhase; ty < 55; ty += tileSpacing) {
+      const py = wy(ty);
+      ctx.beginPath();
+      ctx.moveTo(leftPaveX, py); ctx.lineTo(wx(roadLeft), py);
+      ctx.moveTo(rightPaveX, py); ctx.lineTo(wx(rightPaveRight), py);
+      ctx.stroke();
+    }
+
+    // Piso tátil direcional e de alerta amarelo (NBR 9050)
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(wx(roadLeft - 0.75), 0, wl(0.35), H);
+    ctx.fillRect(wx(roadRight + 0.40), 0, wl(0.35), H);
+
+    // Meio-fios de granito (Curbstones)
+    ctx.fillStyle = '#64748b';
+    ctx.fillRect(wx(roadLeft) - Math.max(2, wl(0.18)), 0, Math.max(2, wl(0.18)), H);
+    ctx.fillRect(wx(roadRight), 0, Math.max(2, wl(0.18)), H);
+
+    // 3. Quarteirões: Casas Residenciais com Telhado Cerâmico Colonial & Comércios
+    const blockPitch = 32.0;
+    const blockPhase = (rs.roadScrollY % blockPitch);
+
+    for (let by = -20 + blockPhase; by < 60; by += blockPitch) {
+      // ── LADO ESQUERDO: QUARTEIRÃO COMERCIAL E RESIDENCIAL ──
+      // Comércio 1: "PADARIA CENTRAL" (y entre by + 2 e by + 14)
+      const shop1Y = wy(by + 8);
+      const shop1H = wl(10.0);
+      const shop1W = wl(blockDepth - 0.5);
+      const shop1X = wx(leftPaveLeft - (blockDepth - 0.5));
+
+      // Edificação da Padaria
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(shop1X, shop1Y - shop1H / 2, shop1W, shop1H);
+      ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1.5;
+      ctx.strokeRect(shop1X, shop1Y - shop1H / 2, shop1W, shop1H);
+
+      // Telhado platibanda com letreiro
+      ctx.fillStyle = '#fef08a';
+      ctx.font = `bold ${Math.max(7, wl(0.75))}px Manrope, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('🥖 PADARIA CENTRAL', shop1X + shop1W * 0.5, shop1Y - shop1H * 0.25);
+
+      // Toldo listrado vermelho e branco sobre a calçada
+      const awningW = wl(1.4);
+      const awningH = wl(8.0);
+      const awningX = wx(leftPaveLeft);
+      for (let s = 0; s < 8; s++) {
+        ctx.fillStyle = s % 2 === 0 ? '#dc2626' : '#ffffff';
+        ctx.fillRect(awningX - awningW, shop1Y - awningH / 2 + s * (awningH / 8), awningW, awningH / 8);
+      }
+
+      // Entrada de Garagem com rebaixo de guia (Lado Esquerdo, em by + 16)
+      const g1Y = wy(by + 16);
+      const g1H = wl(3.6);
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(wx(roadLeft) - Math.max(3, wl(0.35)), g1Y - g1H / 2, Math.max(3, wl(0.35)), g1H);
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(leftPaveX, g1Y - g1H / 2, leftPavePixelW, g1H);
+      ctx.fillStyle = '#f1f5f9';
+      ctx.font = `bold ${Math.max(6, wl(0.55))}px Manrope, sans-serif`;
+      ctx.fillText('GARAGEM', leftPaveX + leftPavePixelW * 0.5, g1Y + 3);
+
+      // Casa Residencial Colonial (Lado Esquerdo, y entre by + 20 e by + 30)
+      const house1Y = wy(by + 25);
+      const house1H = wl(9.0);
+      const house1W = wl(blockDepth - 0.5);
+      const house1X = wx(leftPaveLeft - (blockDepth - 0.5));
+
+      ctx.fillStyle = '#166534';
+      ctx.fillRect(house1X, house1Y - house1H / 2, house1W, house1H);
+
+      // Telhado Colonial Cerâmico (Conforme Imagem 3 Roberto Watanabe)
+      const roofW = house1W * 0.85;
+      const roofH = house1H * 0.85;
+      const roofX = house1X + house1W * 0.08;
+      const roofY = house1Y - roofH / 2;
+
+      ctx.fillStyle = '#b84d32'; // Cerâmica terracota
+      roundRect(ctx, roofX, roofY, roofW, roofH, 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#7f2612';
+      ctx.lineWidth = 1;
+      for (let tr = 1; tr < 10; tr++) {
+        const ry = roofY + tr * (roofH / 10);
+        ctx.beginPath(); ctx.moveTo(roofX, ry); ctx.lineTo(roofX + roofW, ry); ctx.stroke();
+      }
+      ctx.strokeStyle = '#f8fafc';
+      ctx.lineWidth = Math.max(2, wl(0.18));
+      ctx.beginPath(); ctx.moveTo(roofX + roofW * 0.5, roofY); ctx.lineTo(roofX + roofW * 0.5, roofY + roofH); ctx.stroke();
+
+      // ── LADO DIREITO: RESIDÊNCIAS, GARAGENS E DROGARIA/MERCADO ──
+      // Comércio 2: "DROGARIA VIDA" (y entre by + 4 e by + 14)
+      const shop2Y = wy(by + 8);
+      const shop2H = wl(9.5);
+      const shop2W = wl(blockDepth - 0.5);
+      const shop2X = wx(rightPaveRight + 0.5);
+
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(shop2X, shop2Y - shop2H / 2, shop2W, shop2H);
+      ctx.strokeStyle = '#38bdf8'; ctx.lineWidth = 1.5;
+      ctx.strokeRect(shop2X, shop2Y - shop2H / 2, shop2W, shop2H);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = `bold ${Math.max(7, wl(0.75))}px Manrope, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('💊 DROGARIA VIDA', shop2X + shop2W * 0.5, shop2Y - shop2H * 0.25);
+
+      // Cruz Verde da Farmácia
+      ctx.fillStyle = '#22c55e';
+      const crossSize = Math.max(4, wl(0.5));
+      ctx.fillRect(shop2X + shop2W * 0.5 - crossSize / 2, shop2Y, crossSize, crossSize * 3);
+      ctx.fillRect(shop2X + shop2W * 0.5 - crossSize * 1.5, shop2Y + crossSize, crossSize * 3, crossSize);
+
+      // Toldo azul da drogaria
+      const aw2W = wl(1.4);
+      const aw2H = wl(8.0);
+      const aw2X = wx(rightPaveRight);
+      ctx.fillStyle = '#0284c7';
+      ctx.fillRect(aw2X, shop2Y - aw2H / 2, aw2W, aw2H);
+
+      // Entrada de Garagem Residencial (Lado Direito, em by + 17)
+      const g2Y = wy(by + 17);
+      const g2H = wl(3.6);
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(wx(roadRight), g2Y - g2H / 2, Math.max(3, wl(0.35)), g2H);
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(rightPaveX, g2Y - g2H / 2, rightPavePixelW, g2H);
+      ctx.fillStyle = '#fef08a';
+      ctx.font = `bold ${Math.max(6, wl(0.52))}px Manrope, sans-serif`;
+      ctx.fillText('GARAGEM', rightPaveX + rightPavePixelW * 0.5, g2Y + 3);
+
+      // Carro do morador estacionado na garagem
+      const parkX = wx(rightPaveRight + 2.5);
+      drawCarTop(ctx, parkX, g2Y, wl(1.8), wl(4.0), 0, '#1e293b', '#64748b', '#cbd5e1', '#ef4444', 'P');
+
+      // Casa Residencial Colonial 2 (Lado Direito, em by + 26)
+      const house2Y = wy(by + 26);
+      const house2H = wl(9.5);
+      const house2W = wl(blockDepth - 0.5);
+      const house2X = wx(rightPaveRight + 0.5);
+
+      ctx.fillStyle = '#14532d';
+      ctx.fillRect(house2X, house2Y - house2H / 2, house2W, house2H);
+
+      const r2W = house2W * 0.85;
+      const r2H = house2H * 0.85;
+      const r2X = house2X + house2W * 0.08;
+      const r2Y = house2Y - r2H / 2;
+
+      ctx.fillStyle = '#c2410c'; // Telha cerâmica colonial
+      roundRect(ctx, r2X, r2Y, r2W, r2H, 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#9a3412';
+      ctx.lineWidth = 1;
+      for (let tr = 1; tr < 10; tr++) {
+        const ry = r2Y + tr * (r2H / 10);
+        ctx.beginPath(); ctx.moveTo(r2X, ry); ctx.lineTo(r2X + r2W, ry); ctx.stroke();
+      }
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(2, wl(0.18));
+      ctx.beginPath(); ctx.moveTo(r2X + r2W * 0.5, r2Y); ctx.lineTo(r2X + r2W * 0.5, r2Y + r2H); ctx.stroke();
+    }
+
+    // 4. BAIA DE PARADA DE ÔNIBUS (Ref. Diagrama Roberto Watanabe - Imagem 2)
+    if (stage.id === 'arterial' || stage.id === 'coletora') {
+      const bayCenterY = wy(18.0);
+      const bayLength = wl(16.0);
+      const bayDepth = wl(3.0);
+      const taperEntry = wl(12.0);
+      const taperExit = wl(8.0);
+      const bayX = wx(roadRight);
+
+      ctx.save();
+      // Piso contrastante azul antiderrapante da baia
+      ctx.fillStyle = '#0369a1';
+      ctx.fillRect(bayX, bayCenterY - bayLength / 2, bayDepth, bayLength);
+
+      // Faixa de desaceleração Taper 5:1
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      ctx.moveTo(bayX, bayCenterY + bayLength / 2);
+      ctx.lineTo(bayX + bayDepth, bayCenterY + bayLength / 2);
+      ctx.lineTo(bayX, bayCenterY + bayLength / 2 + taperEntry);
+      ctx.closePath();
+      ctx.fill();
+
+      // Faixa de incorporação Taper 3:1
+      ctx.fillStyle = '#0284c7';
+      ctx.beginPath();
+      ctx.moveTo(bayX, bayCenterY - bayLength / 2);
+      ctx.lineTo(bayX + bayDepth, bayCenterY - bayLength / 2);
+      ctx.lineTo(bayX, bayCenterY - bayLength / 2 - taperExit);
+      ctx.closePath();
+      ctx.fill();
+
+      // Linha de separação LMS-1 branca tracejada larga
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(2, wl(0.18));
+      ctx.setLineDash([wl(1.2), wl(1.2)]);
+      ctx.beginPath();
+      ctx.moveTo(bayX, bayCenterY - bayLength / 2 - taperExit);
+      ctx.lineTo(bayX, bayCenterY + bayLength / 2 + taperEntry);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Abrigo de passageiros envidraçado na calçada
+      const shelterX = bayX + bayDepth + wl(0.4);
+      const shelterW = wl(1.8);
+      const shelterH = wl(8.0);
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+      ctx.fillRect(shelterX, bayCenterY - shelterH / 2, shelterW, shelterH);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(shelterX, bayCenterY - shelterH / 2, shelterW, shelterH);
+
+      // Letreiro da baia de ônibus
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${Math.max(6, wl(0.6))}px Manrope, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText('🚏 PONTO DE ÔNIBUS (BAIA 5:1 / 3:1)', shelterX + shelterW / 2, bayCenterY);
+      ctx.restore();
+    }
+  }
+
+  /* ══════════════════════════════════════════════
      RENDERIZAÇÃO TOP VIEW: CENÁRIO DIREÇÃO EM VIAS
      ══════════════════════════════════════════════ */
 
@@ -3721,7 +4083,8 @@
     if (W < 10 || H < 10) return;
 
     const stage = ROAD_STAGES[rs.stageIndex];
-    const totalW = stage.roadWidth + 4.0;
+    const sideSpan = stage.isUrban ? 15.0 : 8.0;
+    const totalW = stage.roadWidth + sideSpan * 2;
     const totalH = 46.0;
     const scale = Math.min(W / totalW, H / totalH);
     const offX = (W - totalW * scale) / 2;
@@ -3733,51 +4096,11 @@
 
     ctx.clearRect(0, 0, W, H);
 
-    // 1. Dark Pixel Background & Calçadas / Acostamento
-    ctx.fillStyle = '#080c14';
-    ctx.fillRect(0, 0, W, H);
-
     const roadLeft = -stage.roadWidth / 2;
     const roadRight = stage.roadWidth / 2;
 
-    // Calçada esquerda e direita com textura Dark Pixel
-    const isCity = stage.isUrban;
-    ctx.fillStyle = isCity ? '#121824' : stage.sideColor;
-    ctx.fillRect(0, 0, wx(roadLeft), H);
-    ctx.fillRect(wx(roadRight), 0, W - wx(roadRight), H);
-
-    // Meio-fio (Curb stone) com realce
-    ctx.fillStyle = isCity ? '#243247' : '#2b3628';
-    ctx.fillRect(wx(roadLeft) - Math.max(2, wl(0.18)), 0, Math.max(2, wl(0.18)), H);
-    ctx.fillRect(wx(roadRight), 0, Math.max(2, wl(0.18)), H);
-
-    // Postes de iluminação pública com cones de luz âmbar nas calçadas (apenas em vias urbanas)
-    if (isCity) {
-      const lampSpacing = 24.0;
-      const lampPhase = (rs.roadScrollY % lampSpacing);
-      for (let ly = -10 + lampPhase; ly < 50; ly += lampSpacing) {
-        const py = wy(ly);
-        ctx.save();
-        const lampGradR = ctx.createRadialGradient(wx(roadRight + 0.9), py, wl(0.3), wx(roadRight + 0.9), py, wl(3.8));
-        lampGradR.addColorStop(0, 'rgba(255, 180, 60, 0.28)');
-        lampGradR.addColorStop(0.5, 'rgba(255, 180, 60, 0.08)');
-        lampGradR.addColorStop(1, 'rgba(255, 180, 60, 0)');
-        ctx.fillStyle = lampGradR;
-        ctx.beginPath();
-        ctx.arc(wx(roadRight + 0.9), py, wl(3.8), 0, Math.PI * 2);
-        ctx.fill();
-
-        const lampGradL = ctx.createRadialGradient(wx(roadLeft - 0.9), py, wl(0.3), wx(roadLeft - 0.9), py, wl(3.8));
-        lampGradL.addColorStop(0, 'rgba(255, 180, 60, 0.28)');
-        lampGradL.addColorStop(0.5, 'rgba(255, 180, 60, 0.08)');
-        lampGradL.addColorStop(1, 'rgba(255, 180, 60, 0)');
-        ctx.fillStyle = lampGradL;
-        ctx.beginPath();
-        ctx.arc(wx(roadLeft - 0.9), py, wl(3.8), 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
-    }
+    // 1. Quarteirões Urbanos com Calçadas, Garagens, Casas e Comércios
+    drawUrbanBlocksTopView(ctx, rs, stage, wx, wy, wl, W, H, roadLeft, roadRight, sideSpan);
 
     // 2. Pista de asfalto com brilho especular
     ctx.fillStyle = stage.tarmac;
@@ -4309,6 +4632,70 @@
       if (isGrn) { ctx.shadowColor = '#4de89a'; ctx.shadowBlur = 12; }
       ctx.beginPath(); ctx.arc(boxX + boxW / 2, boxY + boxH * 0.78, radius, 0, Math.PI * 2); ctx.fill();
       ctx.shadowBlur = 0;
+
+      // ── FAIXA DE PEDESTRES, BOLSÃO DE MOTOS E LINHAS DE RETENÇÃO (CTB ART. 80 / RES. CONTRAN 985/22) ──
+      // 1. Faixa de Pedestres Zebrada
+      const tlCwY = wy(tl.y - 1.8);
+      const cwH = wl(3.0);
+      const stripeW = wl(0.44);
+      const stripeGap = wl(0.44);
+      const numStripes = Math.floor(wl(stage.roadWidth) / (stripeW + stripeGap));
+      for (let s = 0; s < numStripes; s++) {
+        const sx = wx(roadLeft) + s * (stripeW + stripeGap) + stripeGap * 0.5;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(sx, tlCwY - cwH / 2, stripeW, cwH);
+      }
+
+      // Rebaixo de acessibilidade na calçada (NBR 9050)
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(wx(roadLeft) - Math.max(3, wl(0.4)), tlCwY - cwH / 2, Math.max(3, wl(0.4)), cwH);
+      ctx.fillRect(wx(roadRight), tlCwY - cwH / 2, Math.max(3, wl(0.4)), cwH);
+
+      // 2. Bolsão de Espera Exclusiva para Motocicletas (Moto-Box)
+      const motoBoxFrontY = wy(tl.y - 3.4);
+      const motoBoxRearY = wy(tl.y - 7.2);
+      const motoBoxPixelH = motoBoxRearY - motoBoxFrontY;
+
+      // Resina verde esmeralda antiderrapante
+      ctx.fillStyle = 'rgba(16, 185, 129, 0.28)';
+      ctx.fillRect(wx(roadLeft), motoBoxFrontY, wl(stage.roadWidth), motoBoxPixelH);
+
+      // Linha frontal de retenção de motos (branca contínua)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(wx(roadLeft), motoBoxFrontY, wl(stage.roadWidth), Math.max(2, wl(0.28)));
+
+      // Linha traseira de retenção de automóveis (branca contínua larga)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(wx(roadLeft), motoBoxRearY - Math.max(3, wl(0.48)), wl(stage.roadWidth), Math.max(3, wl(0.48)));
+
+      // Pictogramas de motocicletas pintados em branco em cada faixa
+      for (let l = 0; l < stage.lanes; l++) {
+        const laneCenterX = wx(roadLeft + (l + 0.5) * stage.laneWidth);
+        const motoCenterY = (motoBoxFrontY + motoBoxRearY) * 0.5;
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(laneCenterX - wl(0.5), motoCenterY, wl(0.22), 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(laneCenterX + wl(0.5), motoCenterY, wl(0.22), 0, Math.PI * 2); ctx.fill();
+        ctx.lineWidth = Math.max(2, wl(0.12)); ctx.strokeStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(laneCenterX - wl(0.5), motoCenterY);
+        ctx.lineTo(laneCenterX, motoCenterY - wl(0.35));
+        ctx.lineTo(laneCenterX + wl(0.5), motoCenterY);
+        ctx.moveTo(laneCenterX, motoCenterY - wl(0.35));
+        ctx.lineTo(laneCenterX - wl(0.15), motoCenterY - wl(0.65));
+        ctx.stroke();
+      }
+
+      // Tag explicativa de trânsito
+      ctx.fillStyle = 'rgba(6, 78, 59, 0.92)';
+      roundRect(ctx, wx(0) - 80, motoBoxRearY + 6, 160, 16, 4);
+      ctx.fill();
+      ctx.strokeStyle = '#34d399'; ctx.stroke();
+      ctx.fillStyle = '#a7f3d0';
+      ctx.font = 'bold 7.5px Manrope, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🛵 BOLSÃO DE MOTOS (Art. 80 CTB / Res. 985)', wx(0), motoBoxRearY + 17);
+
       ctx.restore();
     }
 
@@ -4721,6 +5108,166 @@
   }
 
   /* ══════════════════════════════════════════════
+     EDIFICAÇÕES, FACHADAS E CALÇADAS URBANAS EM PERSPECTIVA 3D
+     ══════════════════════════════════════════════ */
+
+  function drawUrbanBlocksDriverView(ctx, W, H, hor, rs, stage, getProj) {
+    if (!stage.isUrban) return;
+
+    const paveW = 3.4; // largura da calçada
+    const leftCurbX = -stage.roadWidth * 0.5;
+    const rightCurbX = stage.roadWidth * 0.5;
+    const leftOuterX = -(stage.roadWidth * 0.5 + paveW);
+    const rightOuterX = (stage.roadWidth * 0.5 + paveW);
+
+    // 1. Calçadas em perspectiva 3D
+    const pFarL_In  = getProj(leftCurbX, 55.0);
+    const pFarL_Out = getProj(leftOuterX - 12.0, 55.0);
+    const pNearL_In = getProj(leftCurbX, 0.6);
+    const pNearL_Out= getProj(leftOuterX - 12.0, 0.6);
+
+    // Calçada esquerda
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.moveTo(pFarL_Out.px, pFarL_Out.py);
+    ctx.lineTo(pFarL_In.px, pFarL_In.py);
+    ctx.lineTo(pNearL_In.px, pNearL_In.py);
+    ctx.lineTo(pNearL_Out.px, pNearL_Out.py);
+    ctx.closePath();
+    ctx.fill();
+
+    // Calçada direita
+    const pFarR_In  = getProj(rightCurbX, 55.0);
+    const pFarR_Out = getProj(rightOuterX + 12.0, 55.0);
+    const pNearR_In = getProj(rightCurbX, 0.6);
+    const pNearR_Out= getProj(rightOuterX + 12.0, 0.6);
+
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.moveTo(pFarR_In.px, pFarR_In.py);
+    ctx.lineTo(pFarR_Out.px, pFarR_Out.py);
+    ctx.lineTo(pNearR_Out.px, pNearR_Out.py);
+    ctx.lineTo(pNearR_In.px, pNearR_In.py);
+    ctx.closePath();
+    ctx.fill();
+
+    // Meio-fio de granito cinza em 3D
+    ctx.strokeStyle = '#64748b';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(pFarL_In.px, pFarL_In.py); ctx.lineTo(pNearL_In.px, pNearL_In.py);
+    ctx.moveTo(pFarR_In.px, pFarR_In.py); ctx.lineTo(pNearR_In.px, pNearR_In.py);
+    ctx.stroke();
+
+    // 2. Edificações, Fachadas Comerciais e Casas Coloniais em perspectiva
+    const bDistances = [42, 30, 20, 10];
+    const bShift = (rs.roadScrollY % 12.0);
+
+    bDistances.forEach((baseDist, idx) => {
+      const d = baseDist - bShift;
+      if (d < 2.5 || d > 52.0) return;
+
+      const pL = getProj(leftOuterX, d);
+      const pR = getProj(rightOuterX, d);
+      const bH = Math.max(22, 110 * pL.ps);
+      const bW = Math.max(35, 160 * pL.ps);
+
+      // ── EDIFICAÇÃO LADO ESQUERDO (Padaria / Mercado) ──
+      ctx.save();
+      ctx.fillStyle = (idx % 2 === 0) ? '#334155' : '#1e3a5f';
+      ctx.fillRect(pL.px - bW, pL.py - bH, bW, bH);
+      ctx.strokeStyle = '#475569'; ctx.lineWidth = 1;
+      ctx.strokeRect(pL.px - bW, pL.py - bH, bW, bH);
+
+      // Telhado cerâmico colonial avermelhado no topo
+      const roofH = bH * 0.28;
+      ctx.fillStyle = '#b84d32';
+      ctx.beginPath();
+      ctx.moveTo(pL.px - bW - 10 * pL.ps, pL.py - bH);
+      ctx.lineTo(pL.px - bW * 0.5, pL.py - bH - roofH);
+      ctx.lineTo(pL.px + 4 * pL.ps, pL.py - bH);
+      ctx.closePath();
+      ctx.fill();
+
+      // Vitrine iluminada no térreo
+      ctx.fillStyle = 'rgba(254, 240, 138, 0.45)';
+      ctx.fillRect(pL.px - bW * 0.85, pL.py - bH * 0.45, bW * 0.70, bH * 0.38);
+
+      // Letreiro Comercial
+      const shopName = (idx % 2 === 0) ? '🥖 PADARIA CENTRAL' : '🛒 MINI MERCADO';
+      ctx.fillStyle = '#fef08a';
+      ctx.font = `bold ${Math.max(6, 11 * pL.ps)}px Manrope, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(shopName, pL.px - bW * 0.5, pL.py - bH * 0.52);
+
+      // Toldo listrado vermelho e branco sobre a calçada
+      const awW = Math.max(12, 45 * pL.ps);
+      const awH = Math.max(6, 16 * pL.ps);
+      const awX = pL.px - bW * 0.88;
+      const awY = pL.py - bH * 0.48;
+      for (let s = 0; s < 6; s++) {
+        ctx.fillStyle = (s % 2 === 0) ? '#dc2626' : '#ffffff';
+        ctx.fillRect(awX + s * (awW / 6), awY, awW / 6, awH);
+      }
+
+      // Rebaixo de guia / Entrada de garagem
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillRect(pL.px, pL.py - Math.max(1, 3 * pL.ps), Math.max(6, 20 * pL.ps), Math.max(2, 6 * pL.ps));
+
+      // ── EDIFICAÇÃO LADO DIREITO (Drogaria / Residência Colonial) ──
+      const rH = Math.max(22, 110 * pR.ps);
+      const rW = Math.max(35, 160 * pR.ps);
+
+      ctx.fillStyle = (idx % 2 === 0) ? '#1e293b' : '#334155';
+      ctx.fillRect(pR.px, pR.py - rH, rW, rH);
+      ctx.strokeStyle = '#475569';
+      ctx.strokeRect(pR.px, pR.py - rH, rW, rH);
+
+      // Telhado Colonial Cerâmico
+      const rRoofH = rH * 0.28;
+      ctx.fillStyle = '#c2410c';
+      ctx.beginPath();
+      ctx.moveTo(pR.px - 4 * pR.ps, pR.py - rH);
+      ctx.lineTo(pR.px + rW * 0.5, pR.py - rH - rRoofH);
+      ctx.lineTo(pR.px + rW + 10 * pR.ps, pR.py - rH);
+      ctx.closePath();
+      ctx.fill();
+
+      // Vitrine / Letreiro Drogaria Vida
+      const rShopName = (idx % 2 === 0) ? '💊 DROGARIA VIDA' : '🏠 RESIDENCIAL';
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = `bold ${Math.max(6, 11 * pR.ps)}px Manrope, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(rShopName, pR.px + rW * 0.5, pR.py - rH * 0.52);
+
+      // Cruz Verde da Farmácia
+      if (idx % 2 === 0) {
+        ctx.fillStyle = '#22c55e';
+        const crS = Math.max(3, 7 * pR.ps);
+        ctx.fillRect(pR.px + rW * 0.12, pR.py - rH * 0.72, crS, crS * 3);
+        ctx.fillRect(pR.px + rW * 0.12 - crS, pR.py - rH * 0.72 + crS, crS * 3, crS);
+      }
+
+      // Toldo azul
+      const rAwW = Math.max(12, 45 * pR.ps);
+      const rAwH = Math.max(6, 16 * pR.ps);
+      ctx.fillStyle = '#0284c7';
+      ctx.fillRect(pR.px + 4 * pR.ps, pR.py - rH * 0.48, rAwW, rAwH);
+
+      // Árvores na calçada
+      const treeX = pR.px - Math.max(4, 14 * pR.ps);
+      const treeY = pR.py;
+      const treeR = Math.max(6, 22 * pR.ps);
+      ctx.fillStyle = '#15803d';
+      ctx.beginPath(); ctx.arc(treeX, treeY - treeR * 1.6, treeR, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(treeX - Math.max(1, 2 * pR.ps), treeY - treeR * 0.7, Math.max(2, 4 * pR.ps), treeR * 0.7);
+
+      ctx.restore();
+    });
+  }
+
+  /* ══════════════════════════════════════════════
      RENDERIZAÇÃO DRIVER VIEW: CENÁRIO DIREÇÃO EM VIAS & CIDADE
      ══════════════════════════════════════════════ */
 
@@ -4731,7 +5278,23 @@
 
     const stage = ROAD_STAGES[rs.stageIndex];
     const hor = H * 0.42;
-    const vpX = W * 0.5;
+
+    // Yaw lateral síncrono com o esterçamento
+    const steerYaw = (rs.steerAngle * 0.22) * (W / 140);
+    const vpX = W * 0.5 - steerYaw;
+
+    // Projeção 3D perspectiva estritamente sincronizada com o Top View (planta baixa)
+    const getProj = (worldX, dist) => {
+      const d = Math.max(0.6, dist);
+      const t = Math.min(1.0, 14.0 / (d + 10.0));
+      const topScale = (W * 0.14) / stage.roadWidth;
+      const botScale = (W * 1.35) / stage.roadWidth;
+      const curScale = topScale + (botScale - topScale) * t;
+      const px = vpX + (worldX - rs.playerX) * curScale;
+      const py = hor + (H - hor) * t;
+      const ps = Math.min(2.0, 14.0 / d);
+      return { px, py, ps, curScale, t };
+    };
 
     ctx.clearRect(0, 0, W, H);
 
@@ -4748,50 +5311,125 @@
     ctx.fillStyle = stage.sideColor;
     ctx.fillRect(0, hor, W, H - hor);
 
-    // 3. PISTA EM PERSPECTIVA
-    const roadTopW = W * 0.14;
-    const roadBotW = W * 1.35;
+    // 2B. CALÇADAS E EDIFICAÇÕES URBANAS EM 3D
+    drawUrbanBlocksDriverView(ctx, W, H, hor, rs, stage, getProj);
+
+    // 3. PISTA EM PERSPECTIVA SÍNCRONA COM A PLANTA BAIXA
+    const pTopL = getProj(-stage.roadWidth * 0.5, 55.0);
+    const pTopR = getProj(+stage.roadWidth * 0.5, 55.0);
+    const pBotR = getProj(+stage.roadWidth * 0.5, 0.6);
+    const pBotL = getProj(-stage.roadWidth * 0.5, 0.6);
+
     ctx.fillStyle = stage.tarmac;
     ctx.beginPath();
-    ctx.moveTo(vpX - roadTopW / 2, hor);
-    ctx.lineTo(vpX + roadTopW / 2, hor);
-    ctx.lineTo(vpX + roadBotW / 2, H);
-    ctx.lineTo(vpX - roadBotW / 2, H);
+    ctx.moveTo(pTopL.px, pTopL.py);
+    ctx.lineTo(pTopR.px, pTopR.py);
+    ctx.lineTo(pBotR.px, pBotR.py);
+    ctx.lineTo(pBotL.px, pBotL.py);
     ctx.closePath();
     ctx.fill();
 
+    // Borda esquerda amarela e borda direita branca
     ctx.strokeStyle = '#f1c40f';
     ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(vpX - roadTopW / 2, hor); ctx.lineTo(vpX - roadBotW / 2, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pTopL.px, pTopL.py); ctx.lineTo(pBotL.px, pBotL.py); ctx.stroke();
 
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(vpX + roadTopW / 2, hor); ctx.lineTo(vpX + roadBotW / 2, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pTopR.px, pTopR.py); ctx.lineTo(pBotR.px, pBotR.py); ctx.stroke();
 
-    // Faixas seccionadas com velocidade
+    // Faixas seccionadas com velocidade síncronas com as coordenadas reais
     const lanes = stage.lanes;
     const scrollFrac = (rs.roadScrollY % 4.0) / 4.0;
     ctx.strokeStyle = stage.markingColor;
     ctx.lineWidth = 2;
 
     for (let l = 1; l < lanes; l++) {
-      const topFrac = l / lanes;
-      const botFrac = l / lanes;
-      const x1 = (vpX - roadTopW / 2) + topFrac * roadTopW;
-      const x2 = (vpX - roadBotW / 2) + botFrac * roadBotW;
-
+      const laneWorldX = -stage.roadWidth * 0.5 + l * stage.laneWidth;
       const numSegments = 9;
       for (let s = 0; s < numSegments; s++) {
-        const t1 = Math.pow((s + scrollFrac) / numSegments, 2.2);
-        const t2 = Math.pow((s + 0.55 + scrollFrac) / numSegments, 2.2);
-        if (t1 > 1.0) continue;
-        const sx1 = x1 + (x2 - x1) * t1;
-        const sy1 = hor + (H - hor) * t1;
-        const sx2 = x1 + (x2 - x1) * Math.min(1.0, t2);
-        const sy2 = hor + (H - hor) * Math.min(1.0, t2);
-
-        ctx.beginPath(); ctx.moveTo(sx1, sy1); ctx.lineTo(sx2, sy2); ctx.stroke();
+        const d1 = Math.max(1.0, 50.0 / Math.pow((s + 0.3 + scrollFrac) / numSegments + 0.1, 1.8));
+        const d2 = Math.max(0.6, 50.0 / Math.pow((s + 0.85 + scrollFrac) / numSegments + 0.1, 1.8));
+        if (d1 < 0.8 || d2 > 55.0) continue;
+        const p1 = getProj(laneWorldX, d1);
+        const p2 = getProj(laneWorldX, d2);
+        ctx.beginPath(); ctx.moveTo(p1.px, p1.py); ctx.lineTo(p2.px, p2.py); ctx.stroke();
       }
+    }
+
+    // ── SITUAÇÃO VIA ARTERIAL EM PERSPECTIVA: BOLSÃO DE MOTOS & FAIXA DE PEDESTRES ──
+    if (stage.id === 'arterial' && rs.trafficLight.y > 1.2 && rs.trafficLight.y < 55.0) {
+      const tlDist = rs.trafficLight.y;
+      const ps = Math.min(1.5, 14.0 / tlDist);
+
+      ctx.save();
+      // 1. Faixa de Pedestres Zebrada em Perspectiva
+      const cwDist = tlDist - 1.8;
+      if (cwDist > 0.8) {
+        const pL_cw = getProj(-stage.roadWidth * 0.5, cwDist);
+        const pR_cw = getProj(+stage.roadWidth * 0.5, cwDist);
+        const cwW = pR_cw.px - pL_cw.px;
+        const cwH = Math.max(6, 24 * ps);
+
+        const numZ = 8;
+        const zW = cwW / (numZ * 2);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        for (let z = 0; z < numZ; z++) {
+          ctx.fillRect(pL_cw.px + (z * 2 + 0.5) * zW, pL_cw.py - cwH / 2, zW, cwH);
+        }
+      }
+
+      // 2. Bolsão de Espera Exclusiva para Motocicletas (Moto-Box) em Perspectiva
+      const mbDistFront = tlDist - 3.4;
+      const mbDistRear  = tlDist - 7.2;
+
+      if (mbDistRear > 0.5) {
+        const pL_front = getProj(-stage.roadWidth * 0.5, mbDistFront);
+        const pR_front = getProj(+stage.roadWidth * 0.5, mbDistFront);
+        const pR_rear  = getProj(+stage.roadWidth * 0.5, mbDistRear);
+        const pL_rear  = getProj(-stage.roadWidth * 0.5, mbDistRear);
+
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.32)';
+        ctx.beginPath();
+        ctx.moveTo(pL_front.px, pL_front.py);
+        ctx.lineTo(pR_front.px, pR_front.py);
+        ctx.lineTo(pR_rear.px, pR_rear.py);
+        ctx.lineTo(pL_rear.px, pL_rear.py);
+        ctx.closePath();
+        ctx.fill();
+
+        // Linha frontal de retenção de motos
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = Math.max(2, 4 * ps);
+        ctx.beginPath();
+        ctx.moveTo(pL_front.px, pL_front.py); ctx.lineTo(pR_front.px, pR_front.py);
+        ctx.stroke();
+
+        // Linha traseira de retenção de automóveis
+        ctx.lineWidth = Math.max(3, 7 * ps);
+        ctx.beginPath();
+        ctx.moveTo(pL_rear.px, pL_rear.py); ctx.lineTo(pR_rear.px, pR_rear.py);
+        ctx.stroke();
+
+        // Pictograma de motocicleta pintado em cada faixa
+        for (let l = 0; l < stage.lanes; l++) {
+          const laneCenterDist = (mbDistFront + mbDistRear) * 0.5;
+          const laneCenterWorldX = -stage.roadWidth * 0.5 + (l + 0.5) * stage.laneWidth;
+          const pMoto = getProj(laneCenterWorldX, laneCenterDist);
+
+          ctx.fillStyle = '#ffffff';
+          const rRad = Math.max(2, 5 * pMoto.ps);
+          ctx.beginPath(); ctx.arc(pMoto.px - rRad * 2.5, pMoto.py, rRad, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(pMoto.px + rRad * 2.5, pMoto.py, rRad, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#ffffff'; ctx.lineWidth = Math.max(1.5, 3 * pMoto.ps);
+          ctx.beginPath();
+          ctx.moveTo(pMoto.px - rRad * 2.5, pMoto.py);
+          ctx.lineTo(pMoto.px, pMoto.py - rRad * 1.5);
+          ctx.lineTo(pMoto.px + rRad * 2.5, pMoto.py);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
     }
 
     // 4. SITUAÇÃO 3: CRUZAMENTO COM PLACA R-1 PARE EM PERSPECTIVA (VIA COLETORA)
@@ -6264,6 +6902,119 @@
     ctx.moveTo(W, 0); ctx.lineTo(W - W * 0.06, 0); ctx.lineTo(W - W * 0.12, panY); ctx.lineTo(W, panY);
     ctx.closePath(); ctx.fill();
 
+    // ── RETROVISOR INTERNO CENTRAL NO TOPO DO PARA-BRISA (VISÃO TRASEIRA EM TEMPO REAL) ──
+    const mirrorW = Math.min(220, W * 0.36);
+    const mirrorH = Math.max(38, mirrorW * 0.28);
+    const mirrorX = (W - mirrorW) / 2;
+    const mirrorY = 8;
+
+    // Haste de fixação articulada que desce do teto
+    ctx.save();
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(W * 0.5 - 6, 0, 12, mirrorY + 4);
+    ctx.strokeStyle = '#334155';
+    ctx.strokeRect(W * 0.5 - 6, 0, 12, mirrorY + 4);
+
+    // Carcaça externa chanfrada com acabamento acetinado
+    ctx.fillStyle = '#080d12';
+    ctx.shadowColor = 'rgba(0,0,0,0.85)';
+    ctx.shadowBlur = 14;
+    roundRect(ctx, mirrorX - 4, mirrorY - 4, mirrorW + 8, mirrorH + 8, 10);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Área espelhada interna (com clip para manter os reflexos confinados)
+    ctx.save();
+    ctx.beginPath();
+    roundRect(ctx, mirrorX, mirrorY, mirrorW, mirrorH, 7);
+    ctx.clip();
+
+    // Céu e horizonte traseiro
+    const mHor = mirrorY + mirrorH * 0.42;
+    const rSky = ctx.createLinearGradient(0, mirrorY, 0, mHor);
+    rSky.addColorStop(0, '#040d1a');
+    rSky.addColorStop(1, '#0f2942');
+    ctx.fillStyle = rSky;
+    ctx.fillRect(mirrorX, mirrorY, mirrorW, mirrorH * 0.42);
+
+    // Pista traseira
+    ctx.fillStyle = '#141c18';
+    ctx.fillRect(mirrorX, mHor, mirrorW, mirrorH - (mHor - mirrorY));
+
+    // Linhas de fuga traseiras da pista
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(mirrorX + mirrorW * 0.5 - 12, mHor); ctx.lineTo(mirrorX + mirrorW * 0.15, mirrorY + mirrorH);
+    ctx.moveTo(mirrorX + mirrorW * 0.5 + 12, mHor); ctx.lineTo(mirrorX + mirrorW * 0.85, mirrorY + mirrorH);
+    ctx.stroke();
+
+    // Faixa central amarela
+    ctx.strokeStyle = '#f1c40f';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(mirrorX + mirrorW * 0.5, mHor); ctx.lineTo(mirrorX + mirrorW * 0.5, mirrorY + mirrorH);
+    ctx.stroke();
+
+    // Coleta e projeção de todos os veículos atrás
+    const rearCandidates = [
+      rs.rearCar, rs.ambulance, rs.policeCruiser, rs.truck, rs.motorcycle,
+      (rs.leftCar && rs.leftCar.y < 0 ? rs.leftCar : null),
+      (rs.rightCar && rs.rightCar.y < 0 ? rs.rightCar : null)
+    ].filter(v => v && v.active !== false && v.y < 2.0 && v.y > -45.0);
+
+    rearCandidates.sort((a, b) => a.y - b.y);
+
+    rearCandidates.forEach(cand => {
+      const dist = Math.max(1.2, -cand.y);
+      const ps = Math.min(1.2, 8.5 / dist);
+      // Mapeamento óptico lateral exato:
+      // se o carro está à esquerda (cand.x < rs.playerX), aparece à esquerda no espelho
+      const latOffset = (cand.x - rs.playerX);
+      const cx = mirrorX + mirrorW * 0.5 + latOffset * (mirrorW / (stage.roadWidth * 1.5));
+      const cy = mHor + (mirrorH * 0.52);
+      const cw = Math.max(16, (cand.w || 1.8) * ps * 26);
+      const ch = Math.max(10, (cand.l || 4.2) * ps * 16);
+
+      ctx.fillStyle = cand.color || '#475569';
+      roundRect(ctx, cx - cw / 2, cy - ch / 2, cw, ch, 3);
+      ctx.fill();
+
+      // Faróis dianteiros acesos no espelho
+      ctx.fillStyle = '#fffae0';
+      ctx.beginPath(); ctx.arc(cx - cw * 0.35, cy + ch * 0.1, Math.max(2, 4 * ps), 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx + cw * 0.35, cy + ch * 0.1, Math.max(2, 4 * ps), 0, Math.PI * 2); ctx.fill();
+
+      // Grade e placa
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(cx - cw * 0.22, cy + ch * 0.05, cw * 0.44, ch * 0.25);
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillRect(cx - cw * 0.14, cy + ch * 0.15, cw * 0.28, ch * 0.15);
+
+      // Giroflex para veículos de emergência
+      if (cand.id === 'ambulance' || cand.id === 'policeCruiser') {
+        const flash = (Math.floor(performance.now() / 120) % 2) === 0;
+        ctx.fillStyle = flash ? '#00f2fe' : '#ef4444';
+        ctx.beginPath(); ctx.arc(cx, cy - ch * 0.55, Math.max(3, 7 * ps), 0, Math.PI * 2); ctx.fill();
+      }
+    });
+
+    ctx.restore(); // fim do clip
+
+    // Botão / Lingueta prismática dia/noite
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(mirrorX + mirrorW * 0.5 - 8, mirrorY + mirrorH + 1, 16, 4);
+
+    // Inscrição elegante no topo do espelho
+    ctx.fillStyle = 'rgba(77, 232, 154, 0.85)';
+    ctx.font = 'bold 7px Manrope, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('RETROVISOR CENTRAL • VISTA TRASEIRA', mirrorX + mirrorW * 0.5, mirrorY + 10);
+    ctx.restore();
+
     // LED de Ponto Cego (BSM) na coluna A esquerda
     const bsmLeftActive = Math.abs(rs.leftCar.y) < 6.0;
     ctx.fillStyle = bsmLeftActive ? '#f39c12' : '#22382b';
@@ -6373,6 +7124,15 @@
     const leftCanvas   = document.getElementById('mirrorLeftCanvas');
     const centerCanvas = document.getElementById('mirrorCenterCanvas');
     const rightCanvas  = document.getElementById('mirrorRightCanvas');
+    const stage = ROAD_STAGES[rs.stageIndex];
+
+    const rearCandidates = [
+      rs.rearCar, rs.ambulance, rs.policeCruiser, rs.truck, rs.motorcycle,
+      (rs.leftCar && rs.leftCar.y < 0 ? rs.leftCar : null),
+      (rs.rightCar && rs.rightCar.y < 0 ? rs.rightCar : null)
+    ].filter(v => v && v.active !== false && v.y < 2.0 && v.y > -45.0);
+
+    rearCandidates.sort((a, b) => a.y - b.y);
 
     // 1. RETROVISOR ESQUERDO
     if (leftCanvas) {
@@ -6391,23 +7151,26 @@
         ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(W * 0.7, mHor); ctx.lineTo(W * 0.9, H); ctx.stroke();
 
-        const dy = rs.leftCar.y;
-        if (dy < 10.0 && dy > -35.0) {
-          const depth = Math.max(0.5, -dy);
-          const ps = Math.min(1.2, 5.0 / depth);
-          const cx = W * 0.45;
-          const cy = mHor + (H - mHor) * 0.5;
-          const cw = Math.max(12, 45 * ps);
-          const ch = Math.max(8, 28 * ps);
+        // Veículos no quadrante traseiro esquerdo
+        rearCandidates.forEach(cand => {
+          const latDiff = cand.x - (rs.playerX - stage.laneWidth);
+          if (Math.abs(latDiff) < stage.laneWidth * 1.6) {
+            const depth = Math.max(0.5, -cand.y);
+            const ps = Math.min(1.2, 5.0 / depth);
+            const cx = W * 0.5 + latDiff * (W / (stage.laneWidth * 1.8));
+            const cy = mHor + (H - mHor) * 0.5;
+            const cw = Math.max(12, 45 * ps);
+            const ch = Math.max(8, 28 * ps);
 
-          ctx.fillStyle = rs.leftCar.color;
-          roundRect(ctx, cx - cw / 2, cy - ch / 2, cw, ch, 3);
-          ctx.fill();
+            ctx.fillStyle = cand.color || '#475569';
+            roundRect(ctx, cx - cw / 2, cy - ch / 2, cw, ch, 3);
+            ctx.fill();
 
-          ctx.fillStyle = '#fffae0';
-          ctx.fillRect(cx - cw * 0.42, cy - 2, cw * 0.22, 4);
-          ctx.fillRect(cx + cw * 0.20, cy - 2, cw * 0.22, 4);
-        }
+            ctx.fillStyle = '#fffae0';
+            ctx.fillRect(cx - cw * 0.42, cy - 2, cw * 0.22, 4);
+            ctx.fillRect(cx + cw * 0.20, cy - 2, cw * 0.22, 4);
+          }
+        });
 
         ctx.fillStyle = 'rgba(77,232,154,0.75)';
         ctx.font = '7px Manrope, sans-serif';
@@ -6436,54 +7199,44 @@
         ctx.moveTo(W * 0.5 + 10, mHor); ctx.lineTo(W * 0.85, H);
         ctx.stroke();
 
-        const dy = rs.rearCar.y;
-        if (dy < -2.0) {
-          const depth = Math.max(1.0, -dy);
-          const ps = Math.min(1.0, 7.0 / depth);
-          const cx = W * 0.5;
-          const cy = mHor + (H - mHor) * 0.52;
-          const cw = Math.max(16, 60 * ps);
-          const ch = Math.max(10, 36 * ps);
+        // Pista central
+        ctx.strokeStyle = '#f1c40f';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(W * 0.5, mHor); ctx.lineTo(W * 0.5, H); ctx.stroke();
 
-          ctx.fillStyle = rs.rearCar.color;
+        // Todos os veículos atrás com posição lateral real: cx = W*0.5 + (cand.x - rs.playerX)
+        rearCandidates.forEach(cand => {
+          const depth = Math.max(1.0, -cand.y);
+          const ps = Math.min(1.1, 7.5 / depth);
+          const latOffset = (cand.x - rs.playerX);
+          const cx = W * 0.5 + latOffset * (W / (stage.roadWidth * 1.3));
+          const cy = mHor + (H - mHor) * 0.52;
+          const cw = Math.max(16, (cand.w || 1.8) * ps * 30);
+          const ch = Math.max(10, (cand.l || 4.2) * ps * 18);
+
+          ctx.fillStyle = cand.color || '#475569';
           roundRect(ctx, cx - cw / 2, cy - ch / 2, cw, ch, 4);
           ctx.fill();
 
           ctx.fillStyle = '#fffdd0';
-          ctx.fillRect(cx - cw * 0.44, cy - 2, cw * 0.22, 4);
-          ctx.fillRect(cx + cw * 0.22, cy - 2, cw * 0.22, 4);
-        }
+          ctx.beginPath(); ctx.arc(cx - cw * 0.35, cy + ch * 0.1, Math.max(2, 4 * ps), 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(cx + cw * 0.35, cy + ch * 0.1, Math.max(2, 4 * ps), 0, Math.PI * 2); ctx.fill();
 
-        // Ambulância SAMU em aproximação no retrovisor central
-        if (rs.ambulance.active && rs.ambulance.y < -1.0) {
-          const ambDepth = Math.max(1.0, -rs.ambulance.y);
-          const ambPs = Math.min(1.2, 8.0 / ambDepth);
-          const ambCx = W * 0.40;
-          const ambCy = mHor + (H - mHor) * 0.52;
-          const ambCw = Math.max(18, 65 * ambPs);
-          const ambCh = Math.max(12, 42 * ambPs);
-
-          ctx.fillStyle = '#f8fafc';
-          roundRect(ctx, ambCx - ambCw / 2, ambCy - ambCh / 2, ambCw, ambCh, 4);
-          ctx.fill();
-
-          ctx.fillStyle = '#dc2626';
-          ctx.fillRect(ambCx - ambCw / 2, ambCy - 2, ambCw, 4);
-
-          const flash = (Math.floor(performance.now() / 120) % 2) === 0;
-          ctx.fillStyle = flash ? '#00f2fe' : '#ef4444';
-          ctx.beginPath(); ctx.arc(ambCx, ambCy - ambCh * 0.48, Math.max(2, 6 * ambPs), 0, Math.PI * 2); ctx.fill();
-
-          ctx.fillStyle = flash ? '#00f2fe' : '#f87171';
-          ctx.font = 'bold 7px Manrope, sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText('🚨 SAMU (Art. 189)', W / 2, H - 4);
-        }
+          if (cand.id === 'ambulance' || cand.id === 'policeCruiser') {
+            const flash = (Math.floor(performance.now() / 120) % 2) === 0;
+            ctx.fillStyle = flash ? '#00f2fe' : '#ef4444';
+            ctx.beginPath(); ctx.arc(cx, cy - ch * 0.52, Math.max(2.5, 6 * ps), 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = flash ? '#00f2fe' : '#f87171';
+            ctx.font = 'bold 7px Manrope, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(cand.id === 'ambulance' ? '🚨 SAMU 192' : '🚨 POLÍCIA', W / 2, H - 4);
+          }
+        });
 
         ctx.fillStyle = 'rgba(77,232,154,0.75)';
         ctx.font = '7.5px Manrope, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('RETROVISOR CENTRAL', W / 2, 10);
+        ctx.fillText('RETROVISOR CENTRAL • TEMPO REAL', W / 2, 10);
       }
     }
 
@@ -6504,26 +7257,26 @@
         ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(W * 0.3, mHor); ctx.lineTo(W * 0.1, H); ctx.stroke();
 
-        const dy = rs.rightCar.y;
-        if (dy < 0 && dy > -25.0) {
-          const depth = Math.max(0.5, -dy);
-          const ps = Math.min(1.2, 5.0 / depth);
-          const cx = W * 0.55;
-          const cy = mHor + (H - mHor) * 0.5;
-          const cw = Math.max(12, 45 * ps);
-          const ch = Math.max(8, 28 * ps);
+        // Veículos no quadrante traseiro direito
+        rearCandidates.forEach(cand => {
+          const latDiff = cand.x - (rs.playerX + stage.laneWidth);
+          if (Math.abs(latDiff) < stage.laneWidth * 1.6) {
+            const depth = Math.max(0.5, -cand.y);
+            const ps = Math.min(1.2, 5.0 / depth);
+            const cx = W * 0.5 + latDiff * (W / (stage.laneWidth * 1.8));
+            const cy = mHor + (H - mHor) * 0.5;
+            const cw = Math.max(12, 45 * ps);
+            const ch = Math.max(8, 28 * ps);
 
-          ctx.fillStyle = rs.rightCar.color;
-          roundRect(ctx, cx - cw / 2, cy - ch / 2, cw, ch, 3);
-          ctx.fill();
+            ctx.fillStyle = cand.color || '#475569';
+            roundRect(ctx, cx - cw / 2, cy - ch / 2, cw, ch, 3);
+            ctx.fill();
 
-          ctx.fillStyle = '#fffdd0';
-          ctx.fillRect(cx - cw * 0.42, cy - 2, cw * 0.22, 4);
-          ctx.fillRect(cx + cw * 0.20, cy - 2, cw * 0.22, 4);
-
-          ctx.fillStyle = '#4de89a';
-          ctx.beginPath(); ctx.arc(cx + cw * 0.35, cy + ch * 0.3, 3, 0, Math.PI * 2); ctx.fill();
-        }
+            ctx.fillStyle = '#fffae0';
+            ctx.fillRect(cx - cw * 0.42, cy - 2, cw * 0.22, 4);
+            ctx.fillRect(cx + cw * 0.20, cy - 2, cw * 0.22, 4);
+          }
+        });
 
         ctx.fillStyle = 'rgba(77,232,154,0.75)';
         ctx.font = '7px Manrope, sans-serif';
@@ -7998,20 +8751,20 @@
       narrative = `🚨 Dando passagem imediata ao ${evName} pela faixa da esquerda (Art. 189 CTB)`;
     }
 
-    // ── 2. SEMÁFORO INTELIGENTE (Apenas via arterial) — Art. 208 CTB ──
+    // ── 2. SEMÁFORO INTELIGENTE COM BOLSÃO DE MOTOS (Art. 80 e 208 CTB / Res. CONTRAN 985/22) ──
     if (stage.id === 'arterial' && roadState.trafficLight) {
       const tl = roadState.trafficLight;
       if (tl.state === 'red' || tl.state === 'yellow') {
-        const stopLineY = tl.y - 1.7;
+        const stopLineY = tl.y - 7.4; // Para antes do bolsão de espera de motos
         const distToLine = stopLineY - carFrontY;
         if (tl.y > 1.0 && distToLine < 35.0) {
-          if (distToLine <= 1.2) {
+          if (distToLine <= 1.0) {
             targetSpeed = 0;
-            narrative = '🔴 Parada suave na linha de retenção do semáforo vermelho (Art. 208 CTB)';
+            narrative = '🔴 Parada suave na linha de retenção do semáforo, mantendo o bolsão de motos livre (Art. 208 CTB e Res. CONTRAN 985/22)';
           } else {
-            const vSafe = Math.sqrt(2 * 3.2 * Math.max(0, distToLine - 1.2)) * 3.6;
+            const vSafe = Math.sqrt(2 * 3.2 * Math.max(0, distToLine - 1.0)) * 3.6;
             targetSpeed = Math.min(targetSpeed, vSafe);
-            narrative = '🟡 Reduzindo velocidade para parada no semáforo (Art. 208 CTB)';
+            narrative = '🟡 Reduzindo velocidade para parada antes do bolsão de motos no semáforo (Art. 208 CTB)';
           }
         }
       }
@@ -8082,10 +8835,17 @@
 
       if (stage.id === 'escolar') {
         const tw = roadState.trafficWarden;
-        const hasKids = (roadState.schoolChildren || []).some(c => c.isCrossing);
-        if ((tw && tw.hasWarden && tw.stopSignalActive) || hasKids) {
-          hasCrossingPed = true;
-          pedDesc = tw && tw.hasWarden ? 'Guarda de trânsito apitando parada' : 'Crianças escolares na faixa';
+        if (tw && tw.hasWarden) {
+          if (!tw.trafficReleased) {
+            hasCrossingPed = true;
+            pedDesc = 'Guarda de trânsito regulando travessia escolar (aguarde silvo GA-02 de liberação)';
+          }
+        } else {
+          const hasKids = (roadState.schoolChildren || []).some(c => !c.crossed);
+          if (hasKids) {
+            hasCrossingPed = true;
+            pedDesc = 'Crianças escolares em travessia';
+          }
         }
       } else if (stage.id === 'coletora') {
         if (roadState.elderlyPedestrian && roadState.elderlyPedestrian.active) {
