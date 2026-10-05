@@ -369,7 +369,7 @@
     steerAngle: 0,
     gear: 'D',
     isStopped: false,
-    driveMode: 'manual', // 'manual' (Condutor) | 'demo' (IA Autônoma)
+    driveMode: 'demo', // 'demo' (IA Autônoma Padrão) | 'manual' (Condutor)
     demoState: {
       pareWaitTimer: 0,
       pareCompleted: false,
@@ -1057,7 +1057,8 @@
 
   function updateGearButtonsDom(g) {
     document.querySelectorAll('.sim-gear-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.gear === g);
+      const gearVal = btn.dataset ? btn.dataset.gear : btn.getAttribute('data-gear');
+      btn.classList.toggle('active', gearVal === g);
     });
   }
 
@@ -3774,7 +3775,8 @@
 
     // Sincronizar pílula ativa da situação no painel
     document.querySelectorAll('.sim-sit-pill').forEach(pill => {
-      pill.classList.toggle('active', pill.dataset.stage === stage.id);
+      const stg = pill.dataset ? pill.dataset.stage : pill.getAttribute('data-stage');
+      pill.classList.toggle('active', stg === stage.id);
     });
 
     // Botões de Setas
@@ -5020,19 +5022,25 @@
     const playerL = wl(VEHICLE.length);
 
     // Fachos de farol iluminando a via
-    ctx.save();
-    const beamGrad = ctx.createRadialGradient(playerPx, playerPy - playerL * 0.4, wl(1), playerPx, playerPy - playerL * 2.8, wl(8));
-    beamGrad.addColorStop(0, 'rgba(255,255,220,0.35)');
-    beamGrad.addColorStop(1, 'rgba(255,255,220,0)');
-    ctx.fillStyle = beamGrad;
-    ctx.beginPath();
-    ctx.moveTo(playerPx - playerW * 0.45, playerPy - playerL * 0.4);
-    ctx.lineTo(playerPx - playerW * 1.5, playerPy - playerL * 3.2);
-    ctx.lineTo(playerPx + playerW * 1.5, playerPy - playerL * 3.2);
-    ctx.lineTo(playerPx + playerW * 0.45, playerPy - playerL * 0.4);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
+    try {
+      const r0 = Math.max(0.1, wl(1));
+      const r1 = Math.max(0.5, wl(8));
+      const beamGrad = ctx.createRadialGradient(playerPx, playerPy - playerL * 0.4, r0, playerPx, playerPy - playerL * 2.8, r1);
+      if (beamGrad && typeof beamGrad.addColorStop === 'function') {
+        ctx.save();
+        beamGrad.addColorStop(0, 'rgba(255,255,220,0.35)');
+        beamGrad.addColorStop(1, 'rgba(255,255,220,0)');
+        ctx.fillStyle = beamGrad;
+        ctx.beginPath();
+        ctx.moveTo(playerPx - playerW * 0.45, playerPy - playerL * 0.4);
+        ctx.lineTo(playerPx - playerW * 1.5, playerPy - playerL * 3.2);
+        ctx.lineTo(playerPx + playerW * 1.5, playerPy - playerL * 3.2);
+        ctx.lineTo(playerPx + playerW * 0.45, playerPy - playerL * 0.4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+    } catch (_) {}
 
     if (isRedBlink) {
       ctx.save();
@@ -5284,11 +5292,13 @@
     const vpX = W * 0.5 - steerYaw;
 
     // Projeção 3D perspectiva estritamente sincronizada com o Top View (planta baixa)
+    const roadTopW = W * 0.14;
+    const roadBotW = W * 1.35;
     const getProj = (worldX, dist) => {
       const d = Math.max(0.6, dist);
       const t = Math.min(1.0, 14.0 / (d + 10.0));
-      const topScale = (W * 0.14) / stage.roadWidth;
-      const botScale = (W * 1.35) / stage.roadWidth;
+      const topScale = roadTopW / stage.roadWidth;
+      const botScale = roadBotW / stage.roadWidth;
       const curScale = topScale + (botScale - topScale) * t;
       const px = vpX + (worldX - rs.playerX) * curScale;
       const py = hor + (H - hor) * t;
@@ -7384,8 +7394,8 @@
       roadState.trafficLight.y = 35.0;
       roadState.crosswalk.y = 31.5;
 
-      roadState.driveMode = 'manual';
-      updateDriveModeUi('manual');
+      roadState.driveMode = 'demo';
+      updateDriveModeUi('demo');
 
       if (roadState.randomEvents) {
         roadState.randomEvents.timer = 18.0 + Math.random() * 12.0;
@@ -7963,8 +7973,8 @@
       roadState.railCrossing.y = 52.0;
       roadState.railCrossing.hasStopped = false;
       roadState.railCrossing.hasViolated = false;
-      roadState.driveMode = 'manual';
-      updateDriveModeUi('manual');
+      roadState.driveMode = 'demo';
+      updateDriveModeUi('demo');
       if (roadState.randomEvents) {
         roadState.randomEvents.timer = 18.0 + Math.random() * 12.0;
         roadState.randomEvents.lastEvent = null;
@@ -8448,14 +8458,9 @@
         setRoadStage(sitPill.dataset.stage);
       }
       const driveBtn = e.target.closest('.sim-drive-mode-btn');
-      if (driveBtn && driveBtn.dataset.driveMode) {
-        setDriveMode(driveBtn.dataset.driveMode);
-      }
-      if (e.target.closest('#simBtnDriveUser')) {
-        setDriveMode('manual');
-      }
-      if (e.target.closest('#simBtnDriveDemo')) {
-        setDriveMode('demo');
+      if (driveBtn) {
+        const m = (driveBtn.dataset && driveBtn.dataset.driveMode) || (driveBtn.id === 'simBtnDriveDemo' ? 'demo' : 'manual');
+        setDriveMode(m);
       }
       if (e.target.closest('#simTriggerAmbulance')) {
         triggerAmbulance();
@@ -8500,6 +8505,7 @@
       state = freshState('trajectory');
       hideOverlay();
       updateActionButtons();
+      setDriveMode('demo');
 
       roadState.trainFatalCrash = false;
       roadState.trainCrashCountdown = 0;
