@@ -70,7 +70,7 @@
       desc: 'Área escolar com travessia de crianças, ônibus escolar, guarda apitando e placa A-13',
       bgType: 'school',
       isUrban: true,
-      hasPedestrians: true,
+      hasPedestrians: false,
       skyTop: '#0c1828',
       skyBottom: '#182b45',
       tarmac: '#202624',
@@ -380,8 +380,9 @@
     rightCar: {
       lane: 2,
       x: 3.5,
-      y: 0.5,
-      targetY: 0.5,
+      y: -35.0,
+      targetY: -35.0,
+      active: false,
       speedKmh: 29.5,
       w: 1.8,
       l: 4.2,
@@ -424,14 +425,16 @@
     // ── SITUAÇÃO 1: ÁREA ESCOLAR (ZONA 30 - CTB Art. 220-XIV) ──
     schoolBus: {
       active: true,
-      x: 3.3,
+      x: 4.6, // no recuo de acostamento escolar à direita (fora da faixa de rolamento 1)
       y: 38.0,
       w: 2.3,
       l: 6.8,
-      hazardBlink: false,
+      speedKmh: 0,
+      hazardBlink: true,
       hazardTimer: 0,
       doorOpen: true,
-      isBoarding: true
+      isBoarding: true,
+      turnSignal: null
     },
     trafficWarden: {
       active: true,
@@ -536,13 +539,13 @@
     pedestrians: [
       { id: 1, x: -4.8, y: 16.0, speed: 1.3, dir: 1, shirt: '#ffaa33', pants: '#1e293b', isCrossing: false, animFrame: 0 },
       { id: 2, x: 4.8,  y: 24.0, speed: 1.1, dir: -1, shirt: '#00f2fe', pants: '#0f172a', isCrossing: false, animFrame: 0 },
-      { id: 3, x: -1.6, y: 33.5, speed: 0.95, dir: 1, shirt: '#e74c3c', pants: '#334155', isCrossing: true, animFrame: 0 }
+      { id: 3, x: -1.6, y: 33.5, speed: 0.95, dir: 1, shirt: '#e74c3c', pants: '#334155', isCrossing: false, animFrame: 0 }
     ],
 
     // Ciclista na lateral / ciclofaixa (Art. 201 CTB - 1,50m de distância)
     cyclist: {
       x: 4.2,
-      y: 14.0,
+      y: 38.0,
       speedKmh: 18.0,
       color: '#f1c40f',
       wheelRot: 0,
@@ -2064,24 +2067,14 @@
      ══════════════════════════════════════════════ */
 
   function updateRoadPhysics(dt) {
-    const stage = ROAD_STAGES[roadState.stageIndex];
-
-    // 1. Contador regressivo de 20s para mudança de via
+    // 1. Contador regressivo para mudança de via
     roadState.stageTimer -= dt;
     if (roadState.stageTimer <= 0) {
-      roadState.stageTimer = 20.0;
-      roadState.stageIndex = (roadState.stageIndex + 1) % ROAD_STAGES.length;
-      const nextStage = ROAD_STAGES[roadState.stageIndex];
-      roadState.speedKmh = Math.min(roadState.speedKmh, nextStage.speedLimit * 0.85);
-      roadState.targetSpeedKmh = roadState.driveMode === 'demo' ? (nextStage.speedLimit * 0.88) : 0;
-      const defLane = getPlayerDefaultLane(nextStage);
-      roadState.playerLane = defLane;
-      roadState.lastLaneIndex = defLane;
-      roadState.playerX = getLaneCenterX(nextStage, defLane);
-      roadState.steerAngle = 0;
-      playAlertBeep(false);
-      showRoadStageNotification(nextStage);
+      const nextIdx = (roadState.stageIndex + 1) % ROAD_STAGES.length;
+      setRoadStage(ROAD_STAGES[nextIdx].id);
     }
+
+    const stage = ROAD_STAGES[roadState.stageIndex];
 
     // 2. Controle de Setas (Sinalização - CTB Art. 196) e Bip Relé
     if (roadState.turnSignal) {
@@ -2136,7 +2129,7 @@
       }
 
       if (roadState.isStopped) {
-        // ── VEÍCULO IMOBILIZADO: Só anda com comando explícito de avançar (W/↑) ou ré (S/↓/R) ──
+        // ── VEÍCULO IMOBILIZADO: Só anda com comando explícito de avançar (W/↑) ou ré quando em R (S/↓) ──
         if (inputState.accel) {
           if (isReverse) {
             roadState.gear = 'D';
@@ -2147,13 +2140,19 @@
           roadState.speedKmh = Math.min(6.0, accelRate * dt * 1.5);
           roadState.suspensionPitch = 0.02;
         } else if (inputState.brake) {
-          // Pressionar tecla para trás quando parado engata marcha ré e recua suavemente
-          roadState.gear = 'R';
-          updateGearButtonsDom('R');
-          roadState.isStopped = false;
-          roadState.targetSpeedKmh = Math.min(15.0, roadState.targetSpeedKmh + accelRate * dt * 2.0);
-          roadState.speedKmh = Math.min(4.0, accelRate * dt * 1.2);
-          roadState.suspensionPitch = -0.02;
+          if (isReverse) {
+            // Em marcha à ré: tecla S/↓ acelera para trás
+            roadState.isStopped = false;
+            roadState.targetSpeedKmh = Math.min(15.0, roadState.targetSpeedKmh + accelRate * dt * 2.0);
+            roadState.speedKmh = Math.min(4.0, accelRate * dt * 1.2);
+            roadState.suspensionPitch = -0.02;
+          } else {
+            // Em Drive (D): segurar o pedal de freio mantém o veículo firmemente imobilizado na parada regulamentar
+            roadState.isStopped = true;
+            roadState.speedKmh = 0;
+            roadState.targetSpeedKmh = 0;
+            roadState.suspensionPitch *= 0.8;
+          }
         } else {
           // Nenhuma tecla pressionada: permanece 100% imobilizado aguardando instrução
           roadState.speedKmh = 0;
@@ -2261,51 +2260,59 @@
     const carLeft = roadState.playerX - (VEHICLE.width / 2);
     const carRight = roadState.playerX + (VEHICLE.width / 2);
 
-    if (currentLane > 0) {
-      if ((carLeft - laneLeftDivider) < 0.35 && isDriftingLeft && roadState.turnSignal !== 'left') {
-        issueAit('ART_196', 'Iniciou manobra para a faixa da esquerda sem prévia sinalização por seta.');
-      }
-    }
-    if (currentLane < stage.lanes - 1) {
-      if ((laneRightDivider - carRight) < 0.35 && isDriftingRight && roadState.turnSignal !== 'right') {
-        issueAit('ART_196', 'Iniciou manobra para a faixa da direita sem prévia sinalização por seta.');
-      }
-    }
-
-    if (currentLane !== roadState.lastLaneIndex) {
-      if (currentLane < roadState.lastLaneIndex) {
-        if (roadState.turnSignal !== 'left') {
-          issueAit('ART_196', 'Mudança de faixa para a esquerda concluída sem acionamento prévio da seta.');
-        } else {
-          roadState.successText = '✓ Mudança de faixa para a esquerda com seta e segurança (Art. 196 cumprido)!';
-          roadState.successTimer = 3.5;
-          playAlertBeep(false);
-          roadState.turnSignal = null;
+    if (roadState.stageTimer > 23.5) {
+      roadState.lastLaneIndex = currentLane;
+    } else {
+      if (currentLane > 0) {
+        if ((carLeft - laneLeftDivider) < 0.35 && isDriftingLeft && roadState.turnSignal !== 'left') {
+          issueAit('ART_196', 'Iniciou manobra para a faixa da esquerda sem prévia sinalização por seta.');
         }
-      } else if (currentLane > roadState.lastLaneIndex) {
-        if (roadState.turnSignal !== 'right') {
-          issueAit('ART_196', 'Mudança de faixa para a direita concluída sem acionamento prévio da seta.');
-        } else {
-          const isRightClear = !roadState.blindSpotActive && (roadState.rightCar.y < -3.5 || roadState.rightCar.y > 6.5);
-          if (isRightClear) {
-            roadState.successText = '✓ Mudança de faixa para a direita com seta e segurança (Art. 196 cumprido)!';
+      }
+      if (currentLane < stage.lanes - 1) {
+        if ((laneRightDivider - carRight) < 0.35 && isDriftingRight && roadState.turnSignal !== 'right') {
+          issueAit('ART_196', 'Iniciou manobra para a faixa da direita sem prévia sinalização por seta.');
+        }
+      }
+
+      if (currentLane !== roadState.lastLaneIndex) {
+        if (roadState.speedKmh < 3.0) {
+          // Veículo imobilizado ou com velocidade residual (< 3 km/h): não configura manobra ativa de mudança de faixa
+          roadState.lastLaneIndex = currentLane;
+        } else if (currentLane < roadState.lastLaneIndex) {
+          if (roadState.turnSignal !== 'left') {
+            issueAit('ART_196', 'Mudança de faixa para a esquerda concluída sem acionamento prévio da seta.');
+          } else {
+            roadState.successText = '✓ Mudança de faixa para a esquerda com seta e segurança (Art. 196 cumprido)!';
             roadState.successTimer = 3.5;
             playAlertBeep(false);
-          } else {
-            issueAit('ART_192', 'Mudou para a faixa da direita interceptando a trajetória de veículo próximo (ponto cego).');
+            roadState.turnSignal = null;
           }
-          roadState.turnSignal = null;
+        } else if (currentLane > roadState.lastLaneIndex) {
+          if (roadState.turnSignal !== 'right') {
+            issueAit('ART_196', 'Mudança de faixa para a direita concluída sem acionamento prévio da seta.');
+          } else {
+            const isRightClear = !roadState.blindSpotActive && (roadState.rightCar.y < -3.5 || roadState.rightCar.y > 6.5);
+            if (isRightClear) {
+              roadState.successText = '✓ Mudança de faixa para a direita com seta e segurança (Art. 196 cumprido)!';
+              roadState.successTimer = 3.5;
+              playAlertBeep(false);
+            } else {
+              issueAit('ART_192', 'Mudou para a faixa da direita interceptando a trajetória de veículo próximo (ponto cego).');
+            }
+            roadState.turnSignal = null;
+          }
         }
+        roadState.lastLaneIndex = currentLane;
       }
-      roadState.lastLaneIndex = currentLane;
     }
 
     // 6. Rolagem contínua do asfalto
     const studentVelocity = (roadState.gear === 'R' ? -roadState.speedKmh : roadState.speedKmh);
     const speedMs = (studentVelocity * 1000) / 3600;
     roadState.roadScrollY = (roadState.roadScrollY + speedMs * dt);
-    if (roadState.roadScrollY < 0) roadState.roadScrollY += 24;
-    roadState.roadScrollY = roadState.roadScrollY % 24;
+    // Ciclo amplo estável (múltiplo exato de 2, 4, 16, 24, 32 e 64) eliminando saltos de fase
+    if (roadState.roadScrollY >= 1920) roadState.roadScrollY -= 1920;
+    if (roadState.roadScrollY < 0) roadState.roadScrollY += 1920;
 
     // 7. FISCALIZAÇÃO ELETRÔNICA DE VELOCIDADE (CTB ART. 218)
     if (roadState.gear === 'R') {
@@ -2363,13 +2370,11 @@
     // 9. SITUAÇÃO ESCOLAR (ZONA 30 - ÔNIBUS, CRIANÇAS & GUARDA DE TRÂNSITO)
     if (stage.id === 'escolar') {
       const sb = roadState.schoolBus;
-      sb.y -= speedMs * dt;
       sb.hazardTimer += dt;
       if (sb.hazardTimer >= 0.42) {
         sb.hazardTimer = 0;
         sb.hazardBlink = !sb.hazardBlink;
       }
-      if (sb.y < -18.0) sb.y = 52.0;
 
       const tw = roadState.trafficWarden;
       tw.y = sb.y - 4.5;
@@ -2411,7 +2416,7 @@
           }
         });
 
-        // 3. Todas as crianças chegaram com segurança à calçada oposta
+        // 3. Todas as crianças chegaram com segurança e embarcaram no ônibus
         if (allCrossed) {
           tw.phase = 'releasing';
           tw.releaseTimer = 1.0;
@@ -2423,13 +2428,50 @@
           tw.stopSignalActive = false;
           tw.trafficReleased = true;
           playOfficerGoWhistle(); // GA-02: Dois silvos breves regulamentares de liberação do trânsito!
-          showInstruction('🟢 <b>Guarda de Trânsito Liberou (Silvo GA-02):</b> Trânsito liberado! Siga com atenção (Art. 195 e 220-XIV).');
+          showInstruction('🟢 <b>Guarda de Trânsito Liberou (Silvo GA-02):</b> Trânsito liberado! O ônibus escolar finalizou o embarque e segue viagem.');
         }
       } else if (tw.phase === 'released') {
         // Guarda recua para a lateral da via
         if (tw.x < stage.roadWidth * 0.5 + 0.8) {
           tw.x += dt * 1.8;
         }
+      }
+
+      // ── COMPORTAMENTO DO ÔNIBUS ESCOLAR: SEGUIR VIAGEM APÓS EMBARQUE DAS CRIANÇAS (CTB Art. 34/35) ──
+      if (tw.trafficReleased) {
+        sb.doorOpen = false;
+        sb.isBoarding = false;
+        sb.hazardBlink = false;
+
+        // CTB Art. 34 e 35: O ônibus escolar só incorpora à pista de rolamento após a passagem segura dos veículos da via
+        const playerPassedBus = (sb.y < -14.0);
+        if (playerPassedBus) {
+          sb.speedKmh = Math.min(26.0, (sb.speedKmh || 0) + 12.0 * dt);
+          const targetBusX = getLaneCenterX(stage, 1);
+          sb.x += (targetBusX - sb.x) * 1.6 * dt;
+          if (Math.abs(sb.x - targetBusX) > 0.20) {
+            sb.turnSignal = 'left';
+          } else {
+            sb.turnSignal = null;
+          }
+          const sbSpeedMs = (sb.speedKmh * 1000) / 3600;
+          sb.y += (sbSpeedMs - speedMs) * dt;
+        } else {
+          // Permanece estacionado em segurança dentro da baia de recuo enquanto os veículos passam
+          sb.speedKmh = 0;
+          sb.x = 4.8;
+          sb.turnSignal = 'left'; // Seta esquerda ligada indicando intenção de sair assim que a via estiver livre
+          sb.y -= speedMs * dt;
+        }
+      } else {
+        // Ônibus imobilizado com segurança dentro do recuo de acostamento escolar durante embarque
+        sb.speedKmh = 0;
+        sb.doorOpen = true;
+        sb.isBoarding = true;
+        sb.hazardBlink = true;
+        sb.turnSignal = null;
+        sb.x = 4.8;
+        sb.y -= speedMs * dt;
       }
 
       // Fiscalização na área escolar
@@ -2457,8 +2499,15 @@
         }
       }
 
-      // Reinício do ciclo quando o ônibus escolar fica para trás
-      if (distToSchool < -15.0) {
+      // Reinício do ciclo quando o ônibus escolar e o guarda ficam para trás ou saem do alcance
+      if (distToSchool < -15.0 || sb.y > 62.0) {
+        sb.y = 52.0;
+        sb.x = 4.8;
+        sb.speedKmh = 0;
+        sb.doorOpen = true;
+        sb.isBoarding = true;
+        sb.hazardBlink = true;
+        sb.turnSignal = null;
         tw.whistleGiven = false;
         tw.hasViolated = false;
         tw.phase = 'approach';
@@ -2466,10 +2515,10 @@
         tw.trafficReleased = false;
         tw.x = 0;
         const leftPaveX = -(stage.roadWidth * 0.5 + 1.2);
-        const rightPaveX = stage.roadWidth * 0.5 + 1.2;
+        const rightPaveX = 4.8;
         roadState.schoolChildren.forEach((kid, idx) => {
           kid.x = leftPaveX - idx * 0.8;
-          kid.targetX = rightPaveX + idx * 0.5;
+          kid.targetX = rightPaveX;
           kid.crossed = false;
           kid.isCrossing = false;
         });
@@ -2564,15 +2613,16 @@
         playAmbulanceSiren();
       }
 
-      // O condutor deve ligar seta para a direita e abrir a faixa esquerda/central
-      const isYielding = roadState.playerX > 1.25 && roadState.turnSignal === 'right';
+      // O condutor deve deixar a faixa da viatura livre
+      const isBlockingAmb = Math.abs(roadState.playerX - amb.x) < 1.75;
+      const isYielding = !isBlockingAmb && (roadState.playerLane > 0 || roadState.turnSignal === 'right');
       if (isYielding && !amb.hasYielded) {
         amb.hasYielded = true;
         commendDriver('Conduta cidadã impecável! Deu passagem imediata à ambulância do SAMU em socorro (Art. 189 cumprido)!', 'Art. 189 do CTB');
       }
 
-      // Se a ambulância alcançar o veículo sem que este abra passagem
-      if (amb.y > -6.0 && amb.y < 3.0 && roadState.playerX < 0.75 && !amb.hasViolated) {
+      // Se a ambulância alcançar o veículo e este estiver obstruindo sua faixa
+      if (amb.y > -6.0 && amb.y < 3.0 && isBlockingAmb && !amb.hasViolated) {
         amb.hasViolated = true;
         issueAit('ART_189', 'Deixou de dar passagem à ambulância do SAMU com sirene e luzes de emergência acionadas.');
       }
@@ -2591,15 +2641,16 @@
       const pcSpeedMs = (pc.speedKmh * 1000) / 3600;
       pc.y += (pcSpeedMs - speedMs) * dt;
 
-      // O condutor deve ligar seta para a direita e abrir a faixa esquerda/central
-      const isYieldingPolice = roadState.playerX > 1.25 && roadState.turnSignal === 'right';
+      // O condutor deve deixar a faixa da viatura livre
+      const isBlockingPc = Math.abs(roadState.playerX - pc.x) < 1.75;
+      const isYieldingPolice = !isBlockingPc && (roadState.playerLane > 0 || roadState.turnSignal === 'right');
       if (isYieldingPolice && !pc.hasYielded) {
         pc.hasYielded = true;
         commendDriver('Conduta cidadã exemplar! Deu passagem imediata à viatura policial em emergência (Art. 189 cumprido)!', 'Art. 189 do CTB');
       }
 
-      // Se a viatura alcançar o veículo sem que este abra passagem
-      if (pc.y > -6.0 && pc.y < 3.0 && roadState.playerX < 0.75 && !pc.hasViolated) {
+      // Se a viatura alcançar o veículo e este estiver obstruindo sua faixa
+      if (pc.y > -6.0 && pc.y < 3.0 && isBlockingPc && !pc.hasViolated) {
         pc.hasViolated = true;
         issueAit('ART_189', 'Deixou de dar passagem à viatura policial com sirene e sinais luminosos acionados.');
       }
@@ -2798,12 +2849,17 @@
     cyc.pedalFrame += dt * 5.0;
     cyc.x = (stage.roadWidth * 0.5) - 0.35; // Bordo direito regulamentar
     cyc.speedKmh = Math.min(cyc.speedKmh, Math.min(20.0, stage.speedLimit * 0.5));
-    if (cyc.y < -35.0) { cyc.y = 42.0; cyc.passedSafely = false; }
-    if (cyc.y > 60.0)  cyc.y = -25.0;
+    if (cyc.y < -35.0 || cyc.y > 60.0) {
+      cyc.y = cyc.y < -35.0 ? 42.0 : -25.0;
+      cyc.passedSafely = false;
+      cyc.hasViolated = false;
+    }
 
-    if (Math.abs(cyc.y) < 3.2) {
+    // A infração do Art. 201 ocorre ao PASSAR ou ULTRAPASSAR a bicicleta (veículo em movimento relativo à frente)
+    if (Math.abs(cyc.y) < 3.2 && roadState.speedKmh > 3.0) {
       const lateralDistanceToCyclist = Math.abs(cyc.x - roadState.playerX) - (VEHICLE.width / 2);
-      if (lateralDistanceToCyclist < 1.50) {
+      if (lateralDistanceToCyclist < 1.50 && !cyc.hasViolated) {
+        cyc.hasViolated = true;
         issueAit('ART_201', `Ultrapassou ciclista mantendo apenas ${lateralDistanceToCyclist.toFixed(2)}m de distância lateral (mínimo legal: 1,50m).`);
       } else if (!cyc.passedSafely && lateralDistanceToCyclist >= 1.65) {
         cyc.passedSafely = true;
@@ -2839,13 +2895,10 @@
       stopObstacles.push({ y: roadState.railCrossing.y - 2.8, name: 'Cancela Ferroviária' });
     }
     if (stage.id === 'escolar') {
-      const sb = roadState.schoolBus;
-      if (sb.y > -15.0 && sb.y < 55.0) {
-        stopObstacles.push({ y: sb.y - 4.2, lane: 1, name: 'Ônibus Escolar Parado' });
-      }
       const tw = roadState.trafficWarden;
-      const anyKidCrossing = roadState.schoolChildren.some(k => Math.abs(k.x) < stage.roadWidth * 0.5);
-      if ((tw.hasWarden && tw.whistleGiven) || anyKidCrossing) {
+      const anyKidCrossing = roadState.schoolChildren.some(k => !k.crossed && Math.abs(k.x) < (stage.roadWidth * 0.5 + 0.6));
+      const wardenHolding = tw.hasWarden && !tw.trafficReleased;
+      if (wardenHolding || anyKidCrossing) {
         stopObstacles.push({ y: tw.y - 2.0, name: 'Faixa Escolar' });
       }
     }
@@ -2889,12 +2942,12 @@
       }
 
       // Ciclista no bordo direito: se o veículo compartilha o corredor lateral, respeita 1,50m e não ultrapassa
-      if (stage.isUrban) {
+      if (roadState.cyclist) {
         const c = roadState.cyclist;
-        const latGap = Math.abs(v.x - c.x) - (v.w * 0.5) - 0.3;
-        if (latGap < 1.55) {
-          const safeY = c.y - halfL - 1.8;
-          if (safeY > v.y && (safeY - v.y) < 25.0) {
+        const latGap = Math.abs(v.x - c.x) - (v.w * 0.5);
+        if (latGap < 1.60) {
+          const distY = c.y - v.y;
+          if (distY > -4.0 && distY < 25.0) {
             targetSpd = Math.min(targetSpd, c.speedKmh);
           }
         }
@@ -2926,19 +2979,14 @@
       }
 
       // Travar ultrapassagem ilegal de ciclista a menos de 1,50m (Art. 201)
-      if (stage.isUrban) {
+      if (roadState.cyclist) {
         const c = roadState.cyclist;
-        const latGap = Math.abs(v.x - c.x) - (v.w * 0.5) - 0.3;
-        if (latGap < 1.55) {
-          const safeRearY = c.y - halfL - 1.25;
-          const safeFrontY = c.y + halfL + 1.25;
-          if (v.y > safeRearY && v.y < safeFrontY) {
-            if (v.y <= c.y) {
-              v.y = safeRearY;
-              v.speedKmh = Math.min(v.speedKmh, c.speedKmh);
-            } else {
-              v.y = safeFrontY;
-            }
+        const latGap = Math.abs(v.x - c.x) - (v.w * 0.5);
+        if (latGap < 1.60) {
+          const safeRearY = c.y - halfL - 1.5;
+          if (v.y > safeRearY && v.y < c.y + halfL + 0.5) {
+            v.y = safeRearY;
+            v.speedKmh = Math.min(v.speedKmh, c.speedKmh);
           }
         }
       }
@@ -2979,7 +3027,8 @@
       // Sentido único
       if (stage.lanes === 2) {
         roadState.leftCar.lane = 0; roadState.leftCar.active = true;
-        roadState.frontCar.lane = 1; roadState.frontCar.active = true;
+        // Na área escolar (2 faixas), a faixa 1 é reservada para a aproximação livre da travessia das crianças e do ônibus escolar
+        roadState.frontCar.lane = 1; roadState.frontCar.active = (stage.id !== 'escolar');
         roadState.rearCar.lane = 1;  roadState.rearCar.active = true;
         roadState.rightCar.active = false;
         roadState.truck.active = false;
@@ -2992,9 +3041,10 @@
         roadState.truck.lane = 2;    roadState.truck.active = (stage.id === 'rodovia');
         roadState.motorcycle.active = false;
       } else {
+        // Via arterial (4 faixas): faixa 0 (esquerda/ultrapassagem), faixa 1 (frontCar), faixa 2 (player e moto adiante no moto-box), faixa 3 (caminhão/ônibus)
         roadState.leftCar.lane = 0; roadState.leftCar.active = true;
-        roadState.motorcycle.lane = 1; roadState.motorcycle.active = true;
-        roadState.frontCar.lane = 2; roadState.frontCar.active = true;
+        roadState.frontCar.lane = 1; roadState.frontCar.active = true;
+        roadState.motorcycle.lane = 2; roadState.motorcycle.active = true;
         roadState.rearCar.lane = 2;  roadState.rearCar.active = true;
         roadState.rightCar.lane = 3; roadState.rightCar.active = true;
         roadState.truck.lane = 3;    roadState.truck.active = (stage.id === 'rapida' || stage.id === 'arterial');
@@ -3112,7 +3162,7 @@
     }
 
     // ── 7. Distância Segura entre os Veículos da IA (Nenhum veículo sobrepõe outro — Art. 192) ──
-    const allAiCars = [roadState.frontCar, roadState.leftCar, roadState.rightCar, roadState.truck, roadState.motorcycle].filter(v => v && v.active !== false);
+    const allAiCars = [roadState.frontCar, roadState.leftCar, roadState.rightCar, roadState.rearCar, roadState.truck, roadState.motorcycle].filter(v => v && v.active !== false);
     for (let i = 0; i < allAiCars.length; i++) {
       for (let j = i + 1; j < allAiCars.length; j++) {
         const c1 = allAiCars[i];
@@ -3242,13 +3292,13 @@
     }
 
     // Proteção rigorosa contra colisão da IA na traseira do aluno (Art. 192 CTB - R04)
-    allAiCars.concat([roadState.ambulance, roadState.policeCruiser]).forEach(v => {
+    allAiCars.concat([roadState.rearCar, roadState.ambulance, roadState.policeCruiser]).forEach(v => {
       if (!v || v.active === false) return;
-      if (v.y < 0 && Math.abs(v.x - roadState.playerX) < ((v.w || 1.8) + VEHICLE.width) * 0.5 + 0.25) {
-        const minSafeRearY = -((v.l || 4.3) + VEHICLE.length) * 0.5 - 0.5;
+      if (v.y < 0 && Math.abs(v.x - roadState.playerX) < ((v.w || 1.8) + VEHICLE.width) * 0.5 + 0.15) {
+        const minSafeRearY = -((v.l || 4.3) + VEHICLE.length) * 0.5 - 0.6;
         if (v.y > minSafeRearY) {
           v.y = minSafeRearY;
-          v.speedKmh = Math.min(v.speedKmh, roadState.speedKmh);
+          v.speedKmh = Math.min(v.speedKmh, Math.max(0, roadState.speedKmh - 2.0));
         }
       }
     });
@@ -3282,12 +3332,19 @@
     if (roadState.collisionFlashTimer > 0) roadState.collisionFlashTimer -= dt;
     if (roadState.collisionCooldown > 0) roadState.collisionCooldown -= dt;
 
-    const candidates = [
-      { id: 'frontCar', name: 'Veículo à Frente', x: roadState.frontCar.x, y: roadState.frontCar.y, w: roadState.frontCar.w, l: roadState.frontCar.l, speedKmh: roadState.frontCar.speedKmh },
-      { id: 'rightCar', name: 'Veículo à Direita', x: roadState.rightCar.x, y: roadState.rightCar.y, w: roadState.rightCar.w, l: roadState.rightCar.l, speedKmh: roadState.rightCar.speedKmh },
-      { id: 'leftCar', name: 'Veículo à Esquerda', x: roadState.leftCar.x, y: roadState.leftCar.y, w: roadState.leftCar.w, l: roadState.leftCar.l, speedKmh: roadState.leftCar.speedKmh },
-      { id: 'rearCar', name: 'Veículo Traseiro', x: roadState.rearCar.x, y: roadState.rearCar.y, w: roadState.rearCar.w, l: roadState.rearCar.l, speedKmh: roadState.rearCar.speedKmh }
-    ];
+    const candidates = [];
+    if (roadState.frontCar && roadState.frontCar.active !== false) {
+      candidates.push({ id: 'frontCar', name: 'Veículo à Frente', x: roadState.frontCar.x, y: roadState.frontCar.y, w: roadState.frontCar.w, l: roadState.frontCar.l, speedKmh: roadState.frontCar.speedKmh });
+    }
+    if (roadState.rightCar && roadState.rightCar.active === true) {
+      candidates.push({ id: 'rightCar', name: 'Veículo à Direita', x: roadState.rightCar.x, y: roadState.rightCar.y, w: roadState.rightCar.w, l: roadState.rightCar.l, speedKmh: roadState.rightCar.speedKmh });
+    }
+    if (roadState.leftCar && roadState.leftCar.active === true) {
+      candidates.push({ id: 'leftCar', name: 'Veículo à Esquerda', x: roadState.leftCar.x, y: roadState.leftCar.y, w: roadState.leftCar.w, l: roadState.leftCar.l, speedKmh: roadState.leftCar.speedKmh });
+    }
+    if (roadState.rearCar && roadState.rearCar.active !== false) {
+      candidates.push({ id: 'rearCar', name: 'Veículo Traseiro', x: roadState.rearCar.x, y: roadState.rearCar.y, w: roadState.rearCar.w, l: roadState.rearCar.l, speedKmh: roadState.rearCar.speedKmh });
+    }
 
     if (stage.id === 'escolar') {
       candidates.push({ id: 'schoolBus', name: 'Ônibus Escolar', x: roadState.schoolBus.x, y: roadState.schoolBus.y, w: 2.4, l: 7.2, speedKmh: 0 });
@@ -3337,8 +3394,11 @@
               roadState.frontCar.y = Math.max(roadState.frontCar.y, (halfL_P + halfL_T) + 0.15);
             } else if (target.id === 'truck') {
               roadState.truck.y = Math.max(roadState.truck.y, (halfL_P + halfL_T) + 0.25);
+            } else if (target.id === 'schoolBus') {
+              roadState.schoolBus.y = Math.max(roadState.schoolBus.y, (halfL_P + halfL_T) + 0.25);
             }
             roadState.speedKmh = Math.min(roadState.speedKmh, target.speedKmh * 0.3);
+          } else {
             // Veículo atingiu a traseira do player (target.y < 0)
             if (target.id === 'rearCar') {
               roadState.rearCar.y = Math.min(roadState.rearCar.y, -((halfL_P + halfL_T) + 0.25));
@@ -3844,12 +3904,12 @@
     ctx.fillRect(leftPaveX, 0, leftPavePixelW, H);
     ctx.fillRect(rightPaveX, 0, rightPavePixelW, H);
 
-    // Textura de juntas de piso nas calçadas
+    // Textura de juntas de piso nas calçadas (rolagem retrógrada contínua no sentido oposto ao carro)
     ctx.strokeStyle = 'rgba(71, 85, 105, 0.4)';
     ctx.lineWidth = 1;
     const tileSpacing = 2.2;
-    const tilePhase = (rs.roadScrollY % tileSpacing);
-    for (let ty = -10 + tilePhase; ty < 55; ty += tileSpacing) {
+    const tileShift = (rs.roadScrollY % tileSpacing);
+    for (let ty = -10 - tileShift; ty < 55; ty += tileSpacing) {
       const py = wy(ty);
       ctx.beginPath();
       ctx.moveTo(leftPaveX, py); ctx.lineTo(wx(roadLeft), py);
@@ -3867,11 +3927,11 @@
     ctx.fillRect(wx(roadLeft) - Math.max(2, wl(0.18)), 0, Math.max(2, wl(0.18)), H);
     ctx.fillRect(wx(roadRight), 0, Math.max(2, wl(0.18)), H);
 
-    // 3. Quarteirões: Casas Residenciais com Telhado Cerâmico Colonial & Comércios
+    // 3. Quarteirões: Casas Residenciais & Comércios (rolagem retrógrada contínua no sentido oposto ao carro)
     const blockPitch = 32.0;
-    const blockPhase = (rs.roadScrollY % blockPitch);
+    const blockShift = (rs.roadScrollY % blockPitch);
 
-    for (let by = -20 + blockPhase; by < 60; by += blockPitch) {
+    for (let by = -24 - blockShift; by < 60; by += blockPitch) {
       // ── LADO ESQUERDO: QUARTEIRÃO COMERCIAL E RESIDENCIAL ──
       // Comércio 1: "PADARIA CENTRAL" (y entre by + 2 e by + 14)
       const shop1Y = wy(by + 8);
@@ -4015,63 +4075,75 @@
     }
 
     // 4. BAIA DE PARADA DE ÔNIBUS (Ref. Diagrama Roberto Watanabe - Imagem 2)
+    // Movimenta-se retrogradamente integrada ao cenário urbano no sentido oposto ao do veículo
     if (stage.id === 'arterial' || stage.id === 'coletora') {
-      const bayCenterY = wy(18.0);
-      const bayLength = wl(16.0);
-      const bayDepth = wl(3.0);
-      const taperEntry = wl(12.0);
-      const taperExit = wl(8.0);
-      const bayX = wx(roadRight);
+      const busPitch = 64.0;
+      const busShift = (rs.roadScrollY % busPitch);
 
-      ctx.save();
-      // Piso contrastante azul antiderrapante da baia
-      ctx.fillStyle = '#0369a1';
-      ctx.fillRect(bayX, bayCenterY - bayLength / 2, bayDepth, bayLength);
+      for (let bsy = -28 - busShift; bsy < 65; bsy += busPitch) {
+        const bayCenterY = wy(bsy);
+        const bayLength = wl(14.0);
+        const bayDepth = wl(2.8);
+        const taperEntry = wl(10.0);
+        const taperExit = wl(7.0);
+        const bayX = wx(roadRight);
 
-      // Faixa de desaceleração Taper 5:1
-      ctx.fillStyle = '#0284c7';
-      ctx.beginPath();
-      ctx.moveTo(bayX, bayCenterY + bayLength / 2);
-      ctx.lineTo(bayX + bayDepth, bayCenterY + bayLength / 2);
-      ctx.lineTo(bayX, bayCenterY + bayLength / 2 + taperEntry);
-      ctx.closePath();
-      ctx.fill();
+        ctx.save();
+        // Piso contrastante azul antiderrapante da baia
+        ctx.fillStyle = '#0369a1';
+        ctx.fillRect(bayX, bayCenterY - bayLength / 2, bayDepth, bayLength);
 
-      // Faixa de incorporação Taper 3:1
-      ctx.fillStyle = '#0284c7';
-      ctx.beginPath();
-      ctx.moveTo(bayX, bayCenterY - bayLength / 2);
-      ctx.lineTo(bayX + bayDepth, bayCenterY - bayLength / 2);
-      ctx.lineTo(bayX, bayCenterY - bayLength / 2 - taperExit);
-      ctx.closePath();
-      ctx.fill();
+        // Faixa de desaceleração Taper 5:1
+        ctx.fillStyle = '#0284c7';
+        ctx.beginPath();
+        ctx.moveTo(bayX, bayCenterY + bayLength / 2);
+        ctx.lineTo(bayX + bayDepth, bayCenterY + bayLength / 2);
+        ctx.lineTo(bayX, bayCenterY + bayLength / 2 + taperEntry);
+        ctx.closePath();
+        ctx.fill();
 
-      // Linha de separação LMS-1 branca tracejada larga
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = Math.max(2, wl(0.18));
-      ctx.setLineDash([wl(1.2), wl(1.2)]);
-      ctx.beginPath();
-      ctx.moveTo(bayX, bayCenterY - bayLength / 2 - taperExit);
-      ctx.lineTo(bayX, bayCenterY + bayLength / 2 + taperEntry);
-      ctx.stroke();
-      ctx.setLineDash([]);
+        // Faixa de incorporação Taper 3:1
+        ctx.fillStyle = '#0284c7';
+        ctx.beginPath();
+        ctx.moveTo(bayX, bayCenterY - bayLength / 2);
+        ctx.lineTo(bayX + bayDepth, bayCenterY - bayLength / 2);
+        ctx.lineTo(bayX, bayCenterY - bayLength / 2 - taperExit);
+        ctx.closePath();
+        ctx.fill();
 
-      // Abrigo de passageiros envidraçado na calçada
-      const shelterX = bayX + bayDepth + wl(0.4);
-      const shelterW = wl(1.8);
-      const shelterH = wl(8.0);
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
-      ctx.fillRect(shelterX, bayCenterY - shelterH / 2, shelterW, shelterH);
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(shelterX, bayCenterY - shelterH / 2, shelterW, shelterH);
+        // Linha de separação LMS-1 branca tracejada larga
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = Math.max(2, wl(0.18));
+        ctx.setLineDash([wl(1.2), wl(1.2)]);
+        ctx.beginPath();
+        ctx.moveTo(bayX, bayCenterY - bayLength / 2 - taperExit);
+        ctx.lineTo(bayX, bayCenterY + bayLength / 2 + taperEntry);
+        ctx.stroke();
+        ctx.setLineDash([]);
 
-      // Letreiro da baia de ônibus
-      ctx.fillStyle = '#ffffff';
-      ctx.font = `bold ${Math.max(6, wl(0.6))}px Manrope, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillText('🚏 PONTO DE ÔNIBUS (BAIA 5:1 / 3:1)', shelterX + shelterW / 2, bayCenterY);
-      ctx.restore();
+        // Abrigo de passageiros envidraçado na calçada
+        const shelterX = bayX + bayDepth + wl(0.4);
+        const shelterW = wl(1.8);
+        const shelterH = wl(8.0);
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+        ctx.fillRect(shelterX, bayCenterY - shelterH / 2, shelterW, shelterH);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(shelterX, bayCenterY - shelterH / 2, shelterW, shelterH);
+
+        // Totem com placa indicadora
+        ctx.fillStyle = '#0284c7';
+        ctx.fillRect(shelterX, bayCenterY - shelterH / 2 - wl(1.2), shelterW, wl(1.0));
+        ctx.strokeStyle = '#ffffff';
+        ctx.strokeRect(shelterX, bayCenterY - shelterH / 2 - wl(1.2), shelterW, wl(1.0));
+
+        // Letreiro da baia de ônibus
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${Math.max(6, wl(0.6))}px Manrope, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('🚏 PONTO DE ÔNIBUS (BAIA 5:1 / 3:1)', shelterX + shelterW / 2, bayCenterY);
+        ctx.restore();
+      }
     }
   }
 
@@ -4325,6 +4397,94 @@
         ctx.textAlign = 'center';
         ctx.fillText('🚂 Trem de Carga em Trânsito (Art. 212)', trainPx + trainW * 0.4 + 70, rcY - trainH - 5);
       }
+      ctx.restore();
+    }
+
+    // ── RECUO DE ACOSTAMENTO ESCOLAR & FACHADA DA ESCOLA MUNICIPAL ──
+    if (stage.id === 'escolar' && rs.schoolBus.y > -20 && rs.schoolBus.y < 55) {
+      const sbY = rs.schoolBus.y;
+      const bayStartY = sbY - 5.5;
+      const bayEndY = sbY + 5.5;
+      const bayTop = wy(bayEndY);
+      const bayBottom = wy(bayStartY);
+      const bayH = bayBottom - bayTop;
+      const bayLeft = wx(roadRight);
+      const bayW = wl(2.6);
+
+      ctx.save();
+      // 1. Pavimento asfáltico da baia de recuo
+      ctx.fillStyle = '#1c2420';
+      roundRect(ctx, bayLeft, bayTop, bayW, bayH, 4);
+      ctx.fill();
+
+      // 2. Meio-fio de granito rebaixado com pintura amarela de proibido estacionar / embarque
+      ctx.strokeStyle = '#eab308';
+      ctx.lineWidth = Math.max(2, wl(0.14));
+      ctx.strokeRect(bayLeft, bayTop, bayW, bayH);
+
+      // 3. Linha divisória pontilhada branca entre a pista de rolamento e a baia
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(1.5, wl(0.08));
+      ctx.setLineDash([wl(0.8), wl(0.8)]);
+      ctx.beginPath();
+      ctx.moveTo(bayLeft, bayTop);
+      ctx.lineTo(bayLeft, bayBottom);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 4. Marcação de canalização (zebrado amarelo) nas extremidades da baia
+      ctx.strokeStyle = 'rgba(234, 179, 8, 0.45)';
+      ctx.lineWidth = Math.max(1.5, wl(0.08));
+      for (let zy = 0; zy < 5; zy++) {
+        const yIn = bayTop + wl(zy * 0.7);
+        const yOut = bayBottom - wl(zy * 0.7);
+        ctx.beginPath(); ctx.moveTo(bayLeft, yIn); ctx.lineTo(bayLeft + bayW * 0.65, yIn + wl(0.5)); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(bayLeft, yOut); ctx.lineTo(bayLeft + bayW * 0.65, yOut - wl(0.5)); ctx.stroke();
+      }
+
+      // 5. Inscrição no solo: "RECUO ESCOLAR"
+      ctx.fillStyle = '#facc15';
+      ctx.font = `bold ${Math.max(7, wl(0.65))}px Manrope, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.save();
+      ctx.translate(bayLeft + bayW * 0.5, (bayTop + bayBottom) * 0.5);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('RECUO ESCOLAR', 0, 0);
+      ctx.restore();
+
+      // 6. Fachada e Gradil da Escola Municipal na Calçada Direita
+      const schX = wx(roadRight + 3.0);
+      const schY = wy(sbY);
+      const schW = wl(sideSpan - 3.4);
+      const schH = wl(13.0);
+      ctx.fillStyle = '#1e293b';
+      roundRect(ctx, schX, schY - schH * 0.5, schW, schH, 4);
+      ctx.fill();
+      ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 1.5; ctx.stroke();
+
+      // Letreiro da Escola
+      ctx.fillStyle = '#fef08a';
+      ctx.font = `bold ${Math.max(7, wl(0.7))}px Manrope, sans-serif`;
+      ctx.fillText('🏫 ESCOLA MUNICIPAL', schX + schW * 0.5, schY - schH * 0.28);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = `${Math.max(6, wl(0.5))}px Manrope, sans-serif`;
+      ctx.fillText('ZONA 30 • ART. 220-XIV', schX + schW * 0.5, schY - schH * 0.12);
+
+      // Placa de advertência A-13 (Crianças / Área Escolar) na calçada
+      const signX = wx(roadRight + 0.85);
+      const signY = wy(sbY + 8.5);
+      const sSize = Math.max(7, wl(0.75));
+      ctx.save();
+      ctx.translate(signX, signY);
+      ctx.rotate(Math.PI / 4); // Placa de advertência em formato de losango amarelo
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(-sSize * 0.5, -sSize * 0.5, sSize, sSize);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.2;
+      ctx.strokeRect(-sSize * 0.5, -sSize * 0.5, sSize, sSize);
+      ctx.restore();
+
       ctx.restore();
     }
 
@@ -4738,7 +4898,7 @@
     }
 
     // 6. CICLISTA COM RAIO LEGAL DE 1,50M (CTB ART. 201)
-    if (stage.isUrban && rs.cyclist.y > -8 && rs.cyclist.y < 42) {
+    if (rs.cyclist && rs.cyclist.y > -8 && rs.cyclist.y < 42) {
       const cyc = rs.cyclist;
       const cx = wx(cyc.x);
       const cy = wy(cyc.y);
@@ -5167,13 +5327,14 @@
     ctx.moveTo(pFarR_In.px, pFarR_In.py); ctx.lineTo(pNearR_In.px, pNearR_In.py);
     ctx.stroke();
 
-    // 2. Edificações, Fachadas Comerciais e Casas Coloniais em perspectiva
-    const bDistances = [42, 30, 20, 10];
-    const bShift = (rs.roadScrollY % 12.0);
+    // 2. Edificações, Fachadas Comerciais e Casas Coloniais em perspectiva contínua
+    const bPitch = 14.0;
+    const bShift = (rs.roadScrollY % bPitch);
+    const bDistances = [46, 32, 18, 4];
 
     bDistances.forEach((baseDist, idx) => {
-      const d = baseDist - bShift;
-      if (d < 2.5 || d > 52.0) return;
+      const d = baseDist + (bPitch - bShift);
+      if (d < 3.0 || d > 54.0) return;
 
       const pL = getProj(leftOuterX, d);
       const pR = getProj(rightOuterX, d);
@@ -5273,6 +5434,63 @@
 
       ctx.restore();
     });
+
+    // 3. Abrigo do Ponto de Ônibus em perspectiva 3D na calçada direita
+    if (stage.id === 'arterial' || stage.id === 'coletora') {
+      const bus3dPitch = 64.0;
+      const bus3dShift = (rs.roadScrollY % bus3dPitch);
+      const bus3dDist = (bus3dPitch - bus3dShift);
+      if (bus3dDist >= 3.5 && bus3dDist <= 52.0) {
+        const pBus = getProj(rightOuterX + 1.2, bus3dDist);
+        if (pBus && pBus.ps > 0) {
+          ctx.save();
+          const shH = Math.max(16, 68 * pBus.ps);
+          const shW = Math.max(20, 85 * pBus.ps);
+          const shX = pBus.px;
+          const shY = pBus.py;
+
+          // Estrutura metálica do abrigo (pilares azuis/aço)
+          ctx.strokeStyle = '#0284c7';
+          ctx.lineWidth = Math.max(1.5, 3 * pBus.ps);
+          ctx.beginPath();
+          ctx.moveTo(shX, shY);
+          ctx.lineTo(shX, shY - shH);
+          ctx.lineTo(shX + shW, shY - shH);
+          ctx.lineTo(shX + shW, shY);
+          ctx.stroke();
+
+          // Vidro traseiro fumê translúcido
+          ctx.fillStyle = 'rgba(56, 189, 248, 0.35)';
+          ctx.fillRect(shX, shY - shH * 0.9, shW, shH * 0.9);
+
+          // Cobertura translúcida superior
+          ctx.fillStyle = '#0369a1';
+          ctx.beginPath();
+          ctx.moveTo(shX - 4 * pBus.ps, shY - shH);
+          ctx.lineTo(shX + shW + 6 * pBus.ps, shY - shH);
+          ctx.lineTo(shX + shW + 3 * pBus.ps, shY - shH - 6 * pBus.ps);
+          ctx.lineTo(shX - 7 * pBus.ps, shY - shH - 6 * pBus.ps);
+          ctx.closePath();
+          ctx.fill();
+
+          // Banco de espera
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillRect(shX + 4 * pBus.ps, shY - shH * 0.35, shW - 8 * pBus.ps, Math.max(2, 5 * pBus.ps));
+
+          // Totem da parada com placa 🚏
+          ctx.fillStyle = '#0284c7';
+          const totemW = Math.max(3, 8 * pBus.ps);
+          const totemH = Math.max(12, 45 * pBus.ps);
+          ctx.fillRect(shX - totemW - 3 * pBus.ps, shY - totemH, totemW, totemH);
+          ctx.fillStyle = '#ffffff';
+          ctx.font = `bold ${Math.max(5, 9 * pBus.ps)}px Manrope, sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText('🚏', shX - totemW * 0.5 - 3 * pBus.ps, shY - totemH + 8 * pBus.ps);
+
+          ctx.restore();
+        }
+      }
+    }
   }
 
   /* ══════════════════════════════════════════════
@@ -5870,7 +6088,7 @@
     }
 
     // 9. CICLISTA EM PERSPECTIVA (CTB ART. 201)
-    if (stage.isUrban && rs.cyclist.y > 1.2 && rs.cyclist.y < 45.0) {
+    if (rs.cyclist && rs.cyclist.y > 1.2 && rs.cyclist.y < 45.0) {
       const cycDist = rs.cyclist.y;
       const ps = Math.min(1.4, 14.0 / cycDist);
       const cx = vpX + (rs.cyclist.x - rs.playerX) * ps * W * 0.16;
@@ -7387,7 +7605,8 @@
       roadState.rearCar.x = getLaneCenterX(stg0, defLane);
       roadState.leftCar.lane = 0;
       roadState.leftCar.x = getLaneCenterX(stg0, 0);
-      roadState.rightCar.y = 0.5;
+      roadState.rightCar.y = -35.0;
+      roadState.rightCar.active = false;
       roadState.frontCar.y = 19.0;
       roadState.leftCar.y = -28.0;
       roadState.rearCar.y = -24.0;
@@ -7985,7 +8204,8 @@
       roadState.rearCar.x = getLaneCenterX(stg0, defLane);
       roadState.leftCar.lane = 0;
       roadState.leftCar.x = getLaneCenterX(stg0, 0);
-      roadState.rightCar.y = 0.5;
+      roadState.rightCar.y = -35.0;
+      roadState.rightCar.active = false;
       roadState.frontCar.y = 19.0;
       roadState.leftCar.y = -28.0;
       roadState.rearCar.y = -24.0;
@@ -8564,6 +8784,59 @@
       roadState.playerX = getLaneCenterX(nextStage, defLane);
       roadState.steerAngle = 0;
 
+      // Reseta viaturas de emergência ao trocar de via para evitar colisões residuais
+      if (roadState.ambulance) {
+        roadState.ambulance.active = false;
+        roadState.ambulance.y = -45.0;
+        roadState.ambulance.hasYielded = false;
+        roadState.ambulance.hasViolated = false;
+      }
+      if (roadState.policeCruiser) {
+        roadState.policeCruiser.active = false;
+        roadState.policeCruiser.isPursuing = false;
+        roadState.policeCruiser.y = -45.0;
+        roadState.policeCruiser.hasYielded = false;
+        roadState.policeCruiser.hasViolated = false;
+      }
+      if (roadState.cyclist) {
+        roadState.cyclist.y = 40.0;
+        roadState.cyclist.hasViolated = false;
+        roadState.cyclist.passedSafely = false;
+      }
+
+      // Configura faixas e posiciona com segurança os veículos da IA na nova via
+      if (nextStage.lanes === 2) {
+        roadState.leftCar.lane = 0; roadState.leftCar.active = true;
+        roadState.frontCar.lane = 1; roadState.frontCar.active = (nextStage.id !== 'escolar');
+        roadState.rearCar.lane = 1;  roadState.rearCar.active = true;
+        roadState.rightCar.active = false;
+        roadState.truck.active = false;
+        roadState.motorcycle.active = false;
+      } else if (nextStage.lanes === 3) {
+        roadState.leftCar.lane = 1;  roadState.leftCar.active = true;
+        roadState.frontCar.lane = 1; roadState.frontCar.active = true;
+        roadState.rearCar.lane = 1;  roadState.rearCar.active = true;
+        roadState.rightCar.lane = 2; roadState.rightCar.active = true;
+        roadState.truck.lane = 2;    roadState.truck.active = (nextStage.id === 'rodovia');
+        roadState.motorcycle.active = false;
+      } else {
+        roadState.leftCar.lane = 0;  roadState.leftCar.active = true;
+        roadState.frontCar.lane = 1; roadState.frontCar.active = true;
+        roadState.motorcycle.lane = 2; roadState.motorcycle.active = true;
+        roadState.rearCar.lane = 2;  roadState.rearCar.active = true;
+        roadState.rightCar.lane = 3; roadState.rightCar.active = true;
+        roadState.truck.lane = 3;    roadState.truck.active = (nextStage.id === 'rapida' || nextStage.id === 'arterial');
+      }
+
+      [roadState.frontCar, roadState.leftCar, roadState.rightCar, roadState.rearCar, roadState.truck, roadState.motorcycle].forEach(v => {
+        if (v && v.lane !== undefined) {
+          v.x = getLaneCenterX(nextStage, v.lane);
+          if (v.y > -8.0 && v.y < 8.0) {
+            v.y = v.y >= 0 ? 22.0 : -25.0;
+          }
+        }
+      });
+
       // Restrições de velocidade e segurança estrita do CTB para todos os veículos da IA
       const maxAiSpd = nextStage.speedLimit * 0.88;
       if (roadState.frontCar) roadState.frontCar.speedKmh = Math.min(roadState.frontCar.speedKmh, maxAiSpd);
@@ -8750,11 +9023,34 @@
     const isPcActive = pc && pc.active && pc.isPursuing && pc.y < 35.0;
 
     if (isAmbActive || isPcActive) {
-      desiredSignal = 'right';
-      targetLane = stage.lanes - 1; // desloca para a faixa mais à direita possível
-      targetSpeed = Math.min(targetSpeed, Math.max(25.0, speedLimit * 0.55));
+      const activeEv = isAmbActive ? amb : pc;
       const evName = isAmbActive ? 'SAMU 192' : 'Viatura Policial';
-      narrative = `🚨 Dando passagem imediata ao ${evName} pela faixa da esquerda (Art. 189 CTB)`;
+      const evInMyLane = Math.abs(activeEv.x - roadState.playerX) < 1.7;
+
+      // Res. CONTRAN e CTB Art. 189: quem está na faixa da esquerda (faixa 0) ou obstruindo dá passagem para a direita.
+      // Quem já está nas demais faixas mantém sua faixa com cautela e velocidade reduzida.
+      if (roadState.playerLane === 0 || evInMyLane) {
+        const targetRightLane = Math.min(stage.lanes - 1, roadState.playerLane + 1);
+        const targetRightX = getLaneCenterX(stage, targetRightLane);
+        const rightOccupied = [roadState.rightCar, roadState.truck, roadState.frontCar, roadState.rearCar, roadState.motorcycle].some(v => {
+          if (!v || v.active === false) return false;
+          const latMatch = Math.abs(v.x - targetRightX) < 1.65;
+          const longOverlap = (v.y > -7.0 && v.y < 10.0);
+          return latMatch && longOverlap;
+        });
+        const rightIsClear = !roadState.blindSpotActive && !rightOccupied;
+
+        if (roadState.playerLane < stage.lanes - 1 && rightIsClear && roadState.speedKmh > 10.0 && targetSpeed > 0) {
+          desiredSignal = 'right';
+          targetLane = targetRightLane;
+        }
+        targetSpeed = Math.min(targetSpeed, Math.max(25.0, speedLimit * 0.60));
+        narrative = `🚨 Dando passagem ao ${evName} pela faixa da esquerda (Art. 189 CTB)`;
+      } else {
+        targetLane = roadState.playerLane;
+        targetSpeed = Math.min(targetSpeed, Math.max(25.0, speedLimit * 0.70));
+        narrative = `🚨 Faixa da esquerda desimpedida para passagem do ${evName} (Art. 189 CTB)`;
+      }
     }
 
     // ── 2. SEMÁFORO INTELIGENTE COM BOLSÃO DE MOTOS (Art. 80 e 208 CTB / Res. CONTRAN 985/22) ──
@@ -8865,12 +9161,12 @@
         }
       }
 
-      if (hasCrossingPed && distToCw > -0.5 && distToCw < 30.0) {
-        if (distToCw <= 1.0) {
+      if (hasCrossingPed && distToCw > -0.5 && distToCw < 45.0) {
+        if (distToCw <= 2.2) {
           targetSpeed = 0;
           narrative = `🚶 Parada na faixa de pedestres — ${pedDesc} (Art. 214 CTB)`;
         } else {
-          const vSafe = Math.sqrt(2 * 2.8 * Math.max(0, distToCw - 1.0)) * 3.6;
+          const vSafe = Math.sqrt(2 * 2.8 * Math.max(0, distToCw - 2.2)) * 3.6;
           targetSpeed = Math.min(targetSpeed, vSafe);
           narrative = `🚶 Reduzindo para conceder preferência total ao pedestre (Art. 214 CTB)`;
         }
@@ -8879,53 +9175,76 @@
 
     // ── 6. VEÍCULOS À FRENTE E ÔNIBUS ESCOLAR — Art. 192 CTB ──
     let targetLaneX = getLaneCenterX(stage, targetLane);
-    if (roadState.frontCar && roadState.frontCar.y > 0 && roadState.frontCar.y < 35.0) {
-      const fc = roadState.frontCar;
-      if (Math.abs(fc.x - roadState.playerX) < 2.0) {
-        const distToFc = fc.y - (fc.l * 0.5 + carFrontY);
-        const safeGap = Math.max(7.5, (roadState.speedKmh / 10) * 2.0);
-        if (distToFc < safeGap) {
-          const matchSpd = Math.max(0, fc.speedKmh - 3.0);
-          targetSpeed = Math.min(targetSpeed, matchSpd);
-          if (distToFc < 3.0) targetSpeed = 0;
-          narrative = `🚗 Mantendo distância segura de seguimento do carro à frente (Art. 192 CTB)`;
+
+    const vehiclesAhead = [
+      roadState.frontCar,
+      roadState.truck,
+      roadState.rightCar,
+      roadState.leftCar
+    ].filter(v => v && v.active !== false && v.y > 0 && v.y < 45.0);
+
+    vehiclesAhead.forEach(v => {
+      const vHalfW = (v.w || 1.8) * 0.5;
+      const latOverlap = Math.abs(v.x - roadState.playerX) < (vHalfW + VEHICLE.width * 0.5 + 0.35);
+      if (latOverlap) {
+        const distToV = v.y - ((v.l || 4.4) * 0.5 + carFrontY);
+        const safeGap = Math.max(12.0, (roadState.speedKmh / 3.6) * 2.0);
+        if (distToV < safeGap && distToV > -1.0) {
+          const vSpeed = v.speedKmh || 0;
+          if (distToV <= 6.5) {
+            targetSpeed = (vSpeed < 2.0) ? 0 : Math.min(targetSpeed, Math.max(0, vSpeed - 3.0));
+          } else {
+            const vSafe = Math.sqrt(2 * 2.6 * Math.max(0, distToV - 6.5)) * 3.6;
+            targetSpeed = Math.min(targetSpeed, Math.min(vSpeed + 2.0, vSafe));
+          }
+          narrative = `🚗 Mantendo distância segura de seguimento do veículo à frente (Art. 192 CTB)`;
         }
       }
-    }
+    });
 
-    if (stage.id === 'escolar' && roadState.schoolBus && roadState.schoolBus.y > 0 && roadState.schoolBus.y < 30.0) {
-      const sb = roadState.schoolBus;
-      if (Math.abs(sb.x - roadState.playerX) < 2.0) {
-        const distToSb = sb.y - (sb.l * 0.5 + carFrontY);
-        if (distToSb < 8.0) {
-          targetSpeed = Math.min(targetSpeed, Math.max(0, (distToSb - 2.5) * 3.6));
-          narrative = '🚌 Aguardando ônibus escolar em embarque/desembarque de alunos (Art. 220 CTB)';
-        }
+    if (stage.id === 'escolar' && roadState.schoolBus && roadState.schoolBus.y > -8.0 && roadState.schoolBus.y < 35.0) {
+      const tw = roadState.trafficWarden;
+      if (tw && !tw.trafficReleased) {
+        targetSpeed = 0;
+      } else {
+        targetSpeed = Math.min(targetSpeed, 25.0);
+        narrative = '🚌 Passando por área escolar com velocidade reduzida e atenção redobrada (Art. 220-XIV CTB)';
       }
     }
 
     // ── 7. CICLISTA LATERAL — Art. 201 CTB (1,50 m) ──
-    if (stage.isUrban && roadState.cyclist && roadState.cyclist.y > -2.0 && roadState.cyclist.y < 25.0) {
+    if (roadState.cyclist && roadState.cyclist.y > -8.0 && roadState.cyclist.y < 35.0) {
       const cyc = roadState.cyclist;
       const cycDistY = cyc.y - carFrontY;
       const latGap = Math.abs(roadState.playerX - cyc.x) - (VEHICLE.width * 0.5);
 
-      if (cycDistY > -2.0 && cycDistY < 18.0 && latGap < 1.6) {
-        const safePlayerX = cyc.x - (VEHICLE.width * 0.5) - 1.85;
-        targetLaneX = safePlayerX;
+      if (cycDistY > -6.0 && cycDistY < 30.0 && latGap < 1.95 && roadState.speedKmh > 5.0) {
+        const safePlayerX = cyc.x - (VEHICLE.width * 0.5) - 2.1;
+        targetLaneX = Math.max(-(stage.roadWidth * 0.5 - 0.9), safePlayerX);
         desiredSignal = 'left';
-        targetSpeed = Math.min(targetSpeed, Math.max(15.0, speedLimit * 0.6));
+        targetSpeed = Math.min(targetSpeed, Math.max(16.0, speedLimit * 0.60));
         narrative = '🚴 Manobra de afastamento lateral com folga > 1,50m do ciclista (Art. 201 CTB)';
       }
     }
 
     // ── 7.5. ANIMAL PRÓXIMO À PISTA — Art. 220, XI CTB ──
-    if (roadState.animal && roadState.animal.y > -6.0 && roadState.animal.y < 22.0) {
-      targetSpeed = Math.min(targetSpeed, stage.speedLimit * 0.70);
+    if (roadState.animal && roadState.animal.y > -6.0 && roadState.animal.y < 35.0) {
+      targetSpeed = Math.min(targetSpeed, stage.speedLimit * 0.65);
       narrative = '🐕 Reduzindo velocidade preventivamente por animal nas proximidades da pista (Art. 220, XI CTB)';
     }
 
-    // ── 8. ATUALIZAÇÃO DA SETA ──
+    // ── 8. ATUALIZAÇÃO DA SETA (Art. 196 CTB) ──
+    const targetX = targetLaneX !== undefined ? targetLaneX : getLaneCenterX(stage, targetLane);
+    const lateralDiff = targetX - roadState.playerX;
+
+    if (!desiredSignal) {
+      if (targetLane < roadState.playerLane || lateralDiff < -0.45) {
+        desiredSignal = 'left';
+      } else if (targetLane > roadState.playerLane || lateralDiff > 0.45) {
+        desiredSignal = 'right';
+      }
+    }
+
     if (desiredSignal) {
       if (roadState.turnSignal !== desiredSignal) {
         roadState.turnSignal = desiredSignal;
@@ -8939,10 +9258,9 @@
     roadState.gear = 'D';
     ds.narrativeText = narrative;
 
-    const targetX = targetLaneX !== undefined ? targetLaneX : getLaneCenterX(stage, targetLane);
-    const lateralDiff = targetX - roadState.playerX;
+    const speedRatio = Math.min(1.0, Math.max(0.0, roadState.speedKmh / 15.0));
     roadState.steerAngle = Math.max(-18, Math.min(18, lateralDiff * 14));
-    roadState.playerX += lateralDiff * Math.min(1.0, 3.2 * dt);
+    roadState.playerX += lateralDiff * Math.min(1.0, 3.2 * dt * speedRatio);
 
     if (targetSpeed < roadState.speedKmh) {
       roadState.speedKmh = Math.max(targetSpeed, roadState.speedKmh - 30.0 * dt);
