@@ -12,3 +12,4 @@ Desktop.ini
 # Logs e caches
 *.log
 .tempmediaStorage/
+node_modules/

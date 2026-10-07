@@ -25,6 +25,7 @@ Isto é um protótipo local, não um SaaS pronto para uso operacional. Não há 
 
 ## Arquivos de produto
 
+- `DOSSIE_DO_SISTEMA.md`: Dossiê mestre de documentação geral e cronologia viva de aperfeiçoamentos.
 - `ESCOPO_MVP.md`: fronteira e critérios da primeira fatia.
 - `PESQUISA_INTEGRACOES.md`: evidências públicas e incertezas de integração.
 - `MODELO_DADOS.md`: modelo lógico para backend futuro.
