@@ -838,10 +838,17 @@
     train: null
   };
 
+  const SOUND_PATHS = {
+    ambulance: 'sons/ambulance.mp3',
+    police: 'sons/police.mp3',
+    train: 'sons/train.mp3'
+  };
+
   function getRealAudio(key, src) {
+    const soundSrc = src || SOUND_PATHS[key] || ('sons/' + key + '.mp3');
     if (!realAudio[key]) {
       try {
-        const a = new Audio(src);
+        const a = new Audio(soundSrc);
         a.loop = true;
         a.preload = 'auto';
         realAudio[key] = a;
@@ -2610,7 +2617,10 @@
       amb.sirenTimer += dt;
       if (amb.sirenTimer >= 1.6) {
         amb.sirenTimer = 0;
-        playAmbulanceSiren();
+        // Preserva o áudio original gravado em sons/ambulance.mp3 (usando sintetizador apenas se o MP3 não estiver ativo)
+        if (!realAudio.ambulance || realAudio.ambulance.paused) {
+          playAmbulanceSiren();
+        }
       }
 
       // O condutor deve deixar a faixa da viatura livre
@@ -2696,7 +2706,10 @@
           rc.bellTimer += dt;
           if (rc.bellTimer >= 1.2) {
             rc.bellTimer = 0;
-            playTrainCrossingBell();
+            // Preserva o áudio original gravado em sons/train.mp3 (usando sintetizador apenas se o MP3 não estiver ativo)
+            if (!realAudio.train || realAudio.train.paused) {
+              playTrainCrossingBell();
+            }
           }
         } else {
           // O trem já passou completamente pela passagem de nível!

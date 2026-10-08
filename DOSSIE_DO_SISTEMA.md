@@ -351,6 +351,22 @@ graph TD
 
 ---
 
+### [2026-10-08] — Ciclo 15: Preservação de Áudio Real por Tipo no Simulador
+- **Tipo:** Áudio / Motor do Simulador / Correção de Efeitos Sonoros
+- **Arquivos:** `Auto_Gestao_de_Direcao_v0.1/simulator-engine.js`, `.gitignore`, `DOSSIE_DO_SISTEMA.md`.
+- **Descrição:**
+  - **Mapeamento Explícito de Arquivos em `sons/`:**
+    - Definição do dicionário `SOUND_PATHS` vinculando o tipo de veículo/evento diretamente aos arquivos em `Auto_Gestao_de_Direcao_v0.1/sons/`:
+      - `ambulance` → `sons/ambulance.mp3` (sirene oficial SAMU 192)
+      - `police` → `sons/police.mp3` (sirene de viatura policial / PRF)
+      - `train` → `sons/train.mp3` (apito e som característico de cruzamento rodoferroviário)
+  - **Prioridade e Preservação do Áudio Real:**
+    - Ajustado o loop de física e eventos (`updateRoadPhysics`) para não disparar sintetizadores osciladores Web Audio API por cima das gravações MP3 reais enquanto estas estiverem em execução.
+    - O sintetizador oscilador agora atua puramente como contingência suave caso o navegador bloqueie ou falhe no carregamento do arquivo MP3.
+    - Atenuação e ganho espacial tridimensional por proximidade física preservados com precisão logarítmica.
+
+---
+
 ## 7. Próximos Aperfeiçoamentos Planejados (Roadmap)
 
 1. **Sincronização Bidirecional das Aulas e Agenda com o Banco Neon:**
