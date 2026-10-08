@@ -66,6 +66,9 @@
           <span><b>${esc(account.name.split(' ')[0])}</b><small>Área do Aluno</small></span>
           <button class="dots" id="studentLogoutBtn" title="Sair" style="cursor:pointer;border:0;background:none;color:#9daf9f;font-size:13px" aria-label="Sair da conta">Sair</button>
         </div>
+        <button id="studentBackToAppBtn" class="btn-student-logout" style="width:100%;margin-top:8px;padding:9px 12px;background:rgba(255,100,100,0.12);border:1px solid rgba(255,100,100,0.25);color:#ffaaaa;border-radius:8px;font-size:12px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;">
+          <span>🚪</span> Sair da Área do Aluno
+        </button>
         <div class="version">PORTAL DO ALUNO <span>v0.1</span></div>
       </div>
     `;

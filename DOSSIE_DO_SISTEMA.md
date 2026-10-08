@@ -332,6 +332,25 @@ graph TD
 
 ---
 
+### [2026-10-08] — Ciclo 14: Autenticação por Papel (RBAC) & Saída Fluida do Modo Aluno
+- **Tipo:** Autenticação / Controle de Acesso / Roteamento / UI
+- **Arquivos:** `Auto_Gestao_de_Direcao_v0.1/unified-auth.js`, `Auto_Gestao_de_Direcao_v0.1/student-app.js`, `Auto_Gestao_de_Direcao_v0.1/student-portal.js`, `Auto_Gestao_de_Direcao_v0.1/admin-portal.js`, `Auto_Gestao_de_Direcao_v0.1/app.js`, `Auto_Gestao_de_Direcao_v0.1/index.html`.
+- **Descrição:**
+  - **Correção da Saída do Modo Aluno:**
+    - Resolvido o problema de travamento no Modo Aluno através da exportação global `window.AGDApp = { render, setView, getDb, showInstructor }`.
+    - Inclusão do botão de saída direta no rodapé do menu lateral do aluno (`#studentBackToAppBtn`: "🚪 Sair da Área do Aluno").
+    - Inclusão de botão no cabeçalho superior (`#topbarExitStudentBtn`) garantindo saída mesmo quando a barra lateral estiver recolhida.
+    - Limpeza de recursos e destruição segura do motor Three.js (`AGDSimulator.destroy()`) ao sair do modo aluno.
+  - **Autenticação RBAC Determinada pelo Login (E-mail):**
+    - Criação de `unified-auth.js` com detecção automática do perfil e controle rígido de visibilidade:
+      - **Aluno (`ALUNO`):** visualização estrita e exclusiva do Portal do Aluno (Simulador, Progresso, Conquistas). Menus de instrutor e admin são ocultados e bloqueados. Ao clicar em sair, desloga e retorna para a tela de login.
+      - **Instrutor Autônomo / Autoescola (`INSTRUTOR` / `CFC`):** visualiza seu ambiente operacional (Agenda, Alunos, Veículos, Financeiro, Relatórios). O botão do Super Admin permanece oculto.
+      - **Administrador (`ADMIN`):** visualiza todo o sistema com acesso pleno ao Painel Super Admin Neon DB, assinaturas, convites, tabelas e console SQL.
+    - Modal de login unificado com opção de preenchimento de credenciais ou login rápido (1-clique) para demonstração de todos os papéis.
+    - Chip de status e controle de sessão dinâmico na barra de ações superior (`#userSessionChip`).
+
+---
+
 ## 7. Próximos Aperfeiçoamentos Planejados (Roadmap)
 
 1. **Sincronização Bidirecional das Aulas e Agenda com o Banco Neon:**
@@ -343,6 +362,6 @@ graph TD
 
 ---
 
-*Fim do Dossiê · Última atualização: 07/10/2026.*
+*Fim do Dossiê · Última atualização: 08/10/2026.*
 
 

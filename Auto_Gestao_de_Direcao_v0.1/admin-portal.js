@@ -1044,9 +1044,13 @@ const AGDAdmin = (() => {
     if (crumb) crumb.textContent = 'Visão geral';
 
     // Chama o render normal do app se disponível
-    const orgSelect = document.getElementById('orgSelect');
-    if (orgSelect) {
-      orgSelect.dispatchEvent(new Event('change'));
+    if (window.AGDApp && typeof window.AGDApp.showInstructor === 'function') {
+      window.AGDApp.showInstructor();
+    } else {
+      const orgSelect = document.getElementById('orgSelect');
+      if (orgSelect) {
+        orgSelect.dispatchEvent(new Event('change'));
+      }
     }
   }
 

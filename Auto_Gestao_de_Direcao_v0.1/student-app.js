@@ -46,16 +46,40 @@
     const modeLabel = document.getElementById('modeLabel');
     if (modeLabel) modeLabel.textContent = 'Portal do Aluno';
 
+    // Adiciona botão proeminente de saída na topbar
+    let topbarExit = document.getElementById('topbarExitStudentBtn');
+    if (!topbarExit) {
+      const topActions = document.querySelector('.top-actions');
+      if (topActions) {
+        topbarExit = document.createElement('button');
+        topbarExit.id = 'topbarExitStudentBtn';
+        topbarExit.className = 'topbar-exit-btn';
+        topbarExit.innerHTML = '<span>🚪</span> Sair da Área do Aluno';
+        topbarExit.style.cssText = 'background:rgba(220,53,69,0.15);border:1px solid rgba(220,53,69,0.4);color:#ff7878;font-size:11px;font-weight:700;padding:5px 12px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;';
+        topActions.prepend(topbarExit);
+      }
+    }
+
     renderStudentView();
     bindStudentEvents();
   }
 
   function exitStudentMode() {
     /* destruir simulador se ativo */
-    if (typeof AGDSimulator !== 'undefined') AGDSimulator.destroy();
+    if (typeof AGDSimulator !== 'undefined' && AGDSimulator.destroy) {
+      try { AGDSimulator.destroy(); } catch (err) { console.warn(err); }
+    }
 
     studentMode = false;
-    AGDStudent.logout();
+    if (typeof AGDStudent !== 'undefined' && AGDStudent.logout) {
+      AGDStudent.logout();
+    }
+
+    // Remove botão de saída do topo
+    document.getElementById('topbarExitStudentBtn')?.remove();
+
+    // Checa papel ativo no AGDUnifiedAuth
+    const unifiedSession = window.AGDUnifiedAuth ? window.AGDUnifiedAuth.getSession() : null;
 
     /* sidebar */
     const stdSidebar = document.getElementById('studentSidebar');
@@ -63,15 +87,50 @@
     const adminSidebar = document.getElementById('adminSidebar');
     if (adminSidebar) adminSidebar.hidden = true;
     if (stdSidebar) { stdSidebar.hidden = true; stdSidebar.innerHTML = ''; }
-    if (instSidebar) instSidebar.hidden = false;
 
     /* topbar */
     const modeLabel = document.getElementById('modeLabel');
     if (modeLabel) modeLabel.textContent = 'Operação';
+    const crumb = document.getElementById('crumb');
+    if (crumb) crumb.textContent = 'Visão geral';
 
-    /* voltar para o render do instrutor */
-    if (typeof render === 'function') render();
+    // Se o usuário logou puramente com perfil de aluno, ao sair deve abrir o login
+    if (unifiedSession && unifiedSession.role === 'ALUNO') {
+      if (instSidebar) instSidebar.hidden = true;
+      if (window.AGDUnifiedAuth) {
+        window.AGDUnifiedAuth.clearSession();
+        window.AGDUnifiedAuth.openLoginModal('Sessão de aluno encerrada. Faça login com outro perfil para acessar o sistema.');
+      }
+      return;
+    }
+
+    // Se for admin, pode retornar direto para o painel de admin ou instrutor
+    if (unifiedSession && unifiedSession.role === 'ADMIN') {
+      if (instSidebar) instSidebar.hidden = false;
+      window.location.hash = '#admin';
+      if (window.AGDAdmin && typeof window.AGDAdmin.enterAdminMode === 'function') {
+        window.AGDAdmin.enterAdminMode();
+        return;
+      }
+    }
+
+    // Modo padrão (instrutor ou visitante): volta para a visão do instrutor
+    if (instSidebar) instSidebar.hidden = false;
+    window.location.hash = '#inicio';
+
+    /* voltar para o render do instrutor de forma confiavel */
+    if (window.AGDApp && typeof window.AGDApp.showInstructor === 'function') {
+      window.AGDApp.showInstructor();
+    } else if (typeof render === 'function') {
+      render();
+    }
   }
+
+  window.AGDStudentApp = {
+    enterStudentMode,
+    exitStudentMode,
+    isStudentMode: () => studentMode
+  };
 
   /* ══════════════════════════════════════════════
      RENDERIZAÇÃO DAS VIEWS DO ALUNO
@@ -246,8 +305,8 @@
       return;
     }
 
-    /* logout via clique no botão */
-    if (e.target.closest('#studentLogoutBtn')) {
+    /* logout / sair do aluno via clique no botão */
+    if (e.target.closest('#studentLogoutBtn') || e.target.closest('#studentBackToAppBtn') || e.target.closest('#topbarExitStudentBtn')) {
       exitStudentMode();
       return;
     }

@@ -148,6 +148,25 @@
     }
   });
   document.querySelector('#todayBtn').addEventListener('click',()=>{view='agenda';db.selectedDay=today;db.month=new Date().getMonth();db.year=new Date().getFullYear();render()});
-  document.querySelector('#aboutBtn').addEventListener('click',()=>toast('Demonstração local: use somente dados fictícios. A integração oficial ainda não está habilitada.'));
+  window.AGDApp = {
+    render,
+    setView: (v) => { view = v; render(); },
+    getDb: () => db,
+    showInstructor: () => {
+      view = 'inicio';
+      const instSidebar = document.getElementById('instructorSidebar');
+      const stdSidebar = document.getElementById('studentSidebar');
+      const adminSidebar = document.getElementById('adminSidebar');
+      if (adminSidebar) adminSidebar.hidden = true;
+      if (stdSidebar) { stdSidebar.hidden = true; stdSidebar.innerHTML = ''; }
+      if (instSidebar) instSidebar.hidden = false;
+      const modeLabel = document.getElementById('modeLabel');
+      if (modeLabel) modeLabel.textContent = 'Operação';
+      const crumb = document.getElementById('crumb');
+      if (crumb) crumb.textContent = 'Visão geral';
+      render();
+    }
+  };
+
   render();
 })();
