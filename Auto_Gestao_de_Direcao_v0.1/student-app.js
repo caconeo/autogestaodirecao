@@ -38,6 +38,8 @@
       stdSidebar.innerHTML = AGDPortal.renderStudentSidebar(account);
       stdSidebar.hidden = false;
     }
+    const adminSidebar = document.getElementById('adminSidebar');
+    if (adminSidebar) adminSidebar.hidden = true;
     if (instSidebar) instSidebar.hidden = true;
 
     /* topbar */
@@ -58,6 +60,8 @@
     /* sidebar */
     const stdSidebar = document.getElementById('studentSidebar');
     const instSidebar = document.getElementById('instructorSidebar');
+    const adminSidebar = document.getElementById('adminSidebar');
+    if (adminSidebar) adminSidebar.hidden = true;
     if (stdSidebar) { stdSidebar.hidden = true; stdSidebar.innerHTML = ''; }
     if (instSidebar) instSidebar.hidden = false;
 

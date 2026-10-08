@@ -1,5 +1,11 @@
 [build]
   publish = "Auto_Gestao_de_Direcao_v0.1"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
 
 [[redirects]]
   from = "/Auto_Gestao_de_Direcao_v0.1"

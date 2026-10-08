@@ -291,16 +291,38 @@ graph TD
 
 ---
 
+---
+
+### [2026-10-07] — Ciclo 12: Parametrização do Banco de Dados Neon & Interface do Administrador Master
+- **Tipo:** Backend Serverless / Banco Relacional / Frontend Super Admin
+- **Arquivos:** `netlify/functions/admin.mjs`, `Auto_Gestao_de_Direcao_v0.1/admin-portal.js`, `Auto_Gestao_de_Direcao_v0.1/admin-styles.css`, `Auto_Gestao_de_Direcao_v0.1/index.html`, `scripts/init-db.mjs`, `scripts/verify-db.mjs`, `netlify.toml`, `package.json`, `.env.example`.
+- **Descrição:**
+  - **Parametrização do Banco no Neon (PostgreSQL 18.6):**
+    - Criação e homologação de 14 tabelas relacionais completas: `admin_usuario`, `plano_assinatura`, `organizacao`, `usuario`, `convite_aluno`, `aluno`, `veiculo`, `aula`, `pacote`, `conta_receber`, `pagamento`, `despesa`, `simulador_sessao`, `registro_auditoria`.
+    - Carga de dados inicial (seed) com planos de assinatura (Autônomo Starter, Autônomo Pro, CFC Essencial, CFC Enterprise), contas operacionais piloto e alunos de exemplo.
+  - **Backend Serverless (Netlify Functions):**
+    - Implementação de `netlify/functions/admin.mjs` utilizando o driver oficial `@neondatabase/serverless`.
+    - Endpoints para checagem de latência/saúde do banco (`health`), inspeção de schemas e contagens (`tables`), resumo executivo (`dashboard`), gestão de assinaturas (`subscriptions`, `update-subscription`), cadastro de novos assinantes (`create-user`), emissão de convites (`invites`, `create-invite`) e console de consulta segura (`query-inspector`).
+    - Configuração no `netlify.toml` com rota reversa `/api/*` apontando para `/.netlify/functions/:splat`.
+  - **Interface do Administrador Master:**
+    - Dashboard completo de governança com MRR estimado, contagem de assinaturas por status e acompanhamento de frotas/alunos.
+    - Área de validação de tabelas do banco de dados em tempo real com contador de registros e inspeção de colunas/tipos do PostgreSQL.
+    - Gestão de Assinaturas: controle direto sobre quem pode logar no sistema, com opções de ativação, prorrogação, degustação de 14 dias ou bloqueio imediato de login.
+    - Convites de Alunos Vinculados: motor de geração de tokens e links seguros de convite onde o aluno fica permanentemente associado ao seu professor responsável sem pagar assinatura.
+    - Console SQL interativo com atalhos rápidos para validação e consulta em tempo real.
+
+---
+
 ## 7. Próximos Aperfeiçoamentos Planejados (Roadmap)
 
-1. **Criação do Esquema de Banco de Dados na Neon Data API / Postgres:**
-   - Criação das tabelas relacionais (`organizacao`, `usuario`, `aluno`, `instrutor`, `veiculo`, `aula`, `pacote`, `conta_receber`, `pagamento`, `despesa`).
-   - Configuração de Row-Level Security (RLS) associada ao Neon Auth.
-2. **Conexão Frontend <-> Backend Neon:**
-   - Substituição gradual das chamadas a LocalStorage no `student-auth.js` e `app.js` por requisições HTTP seguras com Bearer JWT para a Neon Data API.
+1. **Sincronização Bidirecional das Aulas e Agenda com o Banco Neon:**
+   - Persistir agendamento, conflitos de horário e finalizações locais diretamente na tabela `aula`.
+2. **Ativação da Área de Aceite de Convite pelo Aluno:**
+   - Fluxo onde o aluno acessa a URL `?convite=AGD-...`, define sua senha e tem seus dados cadastrados na tabela `aluno` do Neon.
 3. **Telemetria de Aulas no Simulador:**
-   - Envio automático de pontuação, faltas cometidas e habilidades exercitadas no simulador diretamente para a tabela de histórico de aulas do aluno no banco de dados.
+   - Envio automático de pontuação, faltas cometidas e habilidades exercitadas no simulador diretamente para a tabela `simulador_sessao` no banco de dados.
 
 ---
 
 *Fim do Dossiê · Última atualização: 07/10/2026.*
+

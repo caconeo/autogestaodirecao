@@ -1,1 +1,14 @@
-{}
+{
+  "name": "auto-gestao-direcao",
+  "version": "1.0.0",
+  "description": "Auto Gestao de Direcao - Sistema de Gestao e Simulador com Neon Postgres",
+  "type": "module",
+  "scripts": {
+    "db:init": "node scripts/init-db.mjs",
+    "test": "node Auto_Gestao_de_Direcao_v0.1/test-domain.cjs"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
+    "dotenv": "^16.4.7"
+  }
+}

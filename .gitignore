@@ -13,3 +13,6 @@ Desktop.ini
 *.log
 .tempmediaStorage/
 node_modules/
+.env
+.env.*
+!.env.example

@@ -7,6 +7,7 @@
   <title>Auto Gestão de Direção</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="student-styles.css">
+  <link rel="stylesheet" href="admin-styles.css">
 </head>
 <body>
   <div class="app-shell">
@@ -35,12 +36,20 @@
             <span class="student-area-icon">◉</span>
             Área do Aluno
           </button>
+          <!-- Link para Painel Master Super Admin -->
+          <button class="student-area-link" id="openAdminMasterBtn" style="margin-top:6px;background:rgba(0, 229, 153, 0.12);color:#00e599;border:1px solid rgba(0, 229, 153, 0.35);">
+            <span class="student-area-icon">⚡</span>
+            Painel Super Admin
+          </button>
           <div class="version">AMBIENTE DE DEMONSTRAÇÃO <span>v0.1</span></div>
         </div>
       </div>
 
       <!-- Modo ALUNO (oculto, injetado via JS) -->
       <div id="studentSidebar" hidden></div>
+
+      <!-- Modo ADMIN MASTER (oculto, injetado via JS) -->
+      <div id="adminSidebar" hidden></div>
     </aside>
 
     <main class="main-area">
@@ -71,5 +80,6 @@
   <script src="simulator-engine.js?v=3.0"></script>
   <script src="app.js?v=3.0"></script>
   <script src="student-app.js?v=3.0"></script>
+  <script src="admin-portal.js?v=3.1"></script>
 </body>
 </html>

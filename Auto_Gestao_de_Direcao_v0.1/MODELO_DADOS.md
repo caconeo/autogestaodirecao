@@ -1,26 +1,22 @@
-# Modelo de dados inicial
+# Modelo de dados relacional (Neon PostgreSQL 18)
 
-Modelo lógico proposto para backend PostgreSQL futuro. O protótipo guarda estrutura reduzida no navegador e usa conteúdo inteiramente fictício.
+Esquema físico e relacional parametrizado e ativo no banco de dados Neon (`autogestaodirecao`).
 
 ```text
-organizacao (id, tipo, nome, fuso, ativa)
-usuario (id, nome, email, status)
-vinculo_usuario (organizacao_id, usuario_id, papel, permissoes)
-aluno (id, organizacao_id, nome, telefone?, categoria, processo_status_interno)
-instrutor (id, organizacao_id, nome, categoria, validade_informada?)
-veiculo (id, organizacao_id, placa, modelo, categoria, validade_informada?)
-aula (id, organizacao_id, aluno_id, instrutor_id, veiculo_id, inicio, fim,
-      status_local, status_integracao, ocorrencia?, criada_por)
-historico_aula (id, aula_id, evento, de, para, ocorrido_em, ator_id)
-pacote (id, organizacao_id, aluno_id, nome, quantidade, saldo_aulas, valor_centavos, status)
-conta_receber (id, organizacao_id, aluno_id, pacote_id?, descricao, valor_centavos,
-               vencimento, status, origem)
-pagamento (id, organizacao_id, conta_receber_id, valor_centavos, recebido_em, meio, referencia?)
-despesa (id, organizacao_id, descricao, valor_centavos, vencimento, pago_em?, status)
-estorno (id, organizacao_id, lancamento_original_id, valor_centavos, motivo, criado_em)
-evento_integracao (id, organizacao_id, aula_id, provedor, acao, idempotency_key,
-                  status, protocolo_externo?, tentativas, criado_em)
-auditoria (id, organizacao_id, ator_id, entidade, entidade_id, acao, instante, metadados_minimos)
+1. admin_usuario (id, nome, email, senha_hash, papel, ativo, criado_em, ultimo_login)
+2. plano_assinatura (id, nome, tipo_publico, valor_mensal_centavos, limite_alunos, limite_veiculos, recursos_json, ativo, criado_em)
+3. organizacao (id, tipo, nome, documento_fiscal?, telefone?, email_contato?, status_assinatura, plano_id, assinatura_valida_ate, ativa, criado_em)
+4. usuario (id, organizacao_id, nome, email, senha_hash, papel, status, criado_em, ultimo_acesso)
+5. convite_aluno (id, organizacao_id, instrutor_id, nome_aluno, email_aluno, telefone_aluno, categoria, token_convite, status, expira_em, aluno_id?, criado_em)
+6. aluno (id, organizacao_id, instrutor_vinculado_id, nome, email, senha_hash?, telefone?, categoria, status, origem_convite_id?, xp_total, nivel, habilidades_json, conquistas_json, criado_em, ultimo_acesso)
+7. veiculo (id, organizacao_id, placa, model, categoria, status, criado_em)
+8. aula (id, organizacao_id, aluno_id, instrutor_id, veiculo_id, inicio, fim, status_local, topico, criado_em)
+9. pacote (id, organizacao_id, aluno_id, nome, quantidade, saldo_aulas, valor_centavos, status, criado_em)
+10. conta_receber (id, organizacao_id, aluno_id, pacote_id?, descricao, valor_centavos, vencimento, status, origem, criado_em)
+11. pagamento (id, organizacao_id, conta_receber_id, valor_centavos, recebido_em, meio, referencia?, criado_em)
+12. despesa (id, organizacao_id, descricao, valor_centavos, vencimento, pago_em?, status, criado_em)
+13. simulador_sessao (id, aluno_id, cenario, modo, score, duracao_segundos, infracoes_cometidas, criado_em)
+14. registro_auditoria (id, autor_tipo, autor_id, acao, tabela_afetada, detalhes_json, criado_em)
 ```
 
 ## Integridade e regras
