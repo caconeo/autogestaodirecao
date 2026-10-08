@@ -47,40 +47,32 @@ export async function handler(event, context) {
     if (action === 'tables' || action === 'db-schema') {
       const tables = await sql`
         SELECT 
-          table_name,
+          t.table_name as tabela,
+          COALESCE(s.n_live_tup, 0)::int as total_linhas,
           (
-            SELECT count(*) 
+            SELECT count(*)::int 
             FROM information_schema.columns c 
             WHERE c.table_name = t.table_name AND c.table_schema = 'public'
-          )::int as num_colunas
+          ) as num_colunas
         FROM information_schema.tables t
-        WHERE table_schema = 'public'
-        ORDER BY table_name;
+        LEFT JOIN pg_stat_user_tables s ON s.relname = t.table_name
+        WHERE t.table_schema = 'public'
+        ORDER BY t.table_name;
       `;
 
-      const details = [];
-      for (const t of tables) {
-        try {
-          const countRes = await sql.query(`SELECT COUNT(*)::int as total FROM "${t.table_name}"`);
-          const colsRes = await sql`
-            SELECT column_name, data_type, is_nullable
-            FROM information_schema.columns
-            WHERE table_schema = 'public' AND table_name = ${t.table_name}
-            ORDER BY ordinal_position;
-          `;
-          details.push({
-            tabela: t.table_name,
-            totalLinhas: countRes[0].total,
-            colunas: colsRes
-          });
-        } catch (e) {
-          details.push({
-            tabela: t.table_name,
-            totalLinhas: -1,
-            erro: e.message
-          });
-        }
-      }
+      const allCols = await sql`
+        SELECT table_name, column_name, data_type, is_nullable
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+        ORDER BY table_name, ordinal_position;
+      `;
+
+      const details = tables.map(t => ({
+        tabela: t.tabela,
+        totalLinhas: t.total_linhas,
+        num_colunas: t.num_colunas,
+        colunas: allCols.filter(c => c.table_name === t.tabela)
+      }));
 
       return {
         statusCode: 200,
@@ -92,6 +84,7 @@ export async function handler(event, context) {
         })
       };
     }
+
 
     // 3. DASHBOARD MASTER
     if (action === 'dashboard') {
@@ -426,7 +419,14 @@ export async function handler(event, context) {
         };
       }
 
-      const rows = await sql.query(sqlText);
+      let rows = [];
+      if (typeof sql.query === 'function') {
+        rows = await sql.query(sqlText);
+      } else if (typeof sql.unsafe === 'function') {
+        rows = await sql.unsafe(sqlText);
+      } else {
+        rows = await sql([sqlText]);
+      }
       return {
         statusCode: 200,
         headers,
