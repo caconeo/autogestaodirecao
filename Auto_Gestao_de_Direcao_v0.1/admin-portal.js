@@ -116,13 +116,16 @@ const AGDAdmin = (() => {
   function renderAdminSidebar() {
     return `
       <div class="admin-sidebar">
-        <a class="admin-brand" href="#admin-dashboard">
-          <div class="admin-brand-icon">⚡</div>
-          <div>
-            <div style="font-size:14px;font-weight:800;letter-spacing:0.02em;">SUPER ADMIN</div>
-            <div class="admin-badge-pill">Neon Postgres 18</div>
-          </div>
-        </a>
+        <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--admin-card-border);padding-right:8px;">
+          <a class="admin-brand" href="#admin-dashboard" style="border-bottom:none;flex:1;">
+            <div class="admin-brand-icon">⚡</div>
+            <div>
+              <div style="font-size:14px;font-weight:800;letter-spacing:0.02em;">SUPER ADMIN</div>
+              <div class="admin-badge-pill">Neon Postgres 18</div>
+            </div>
+          </a>
+          <button class="sidebar-collapse-btn" title="Recolher / Expandir menu" aria-label="Recolher menu">◀</button>
+        </div>
 
         <div style="padding:12px 14px 4px;font-size:11px;font-weight:700;color:var(--admin-text-secondary);letter-spacing:0.06em;">
           GESTÃO & GOVERNANÇA

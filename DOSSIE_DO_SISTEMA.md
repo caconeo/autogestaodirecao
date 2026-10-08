@@ -313,6 +313,25 @@ graph TD
 
 ---
 
+---
+
+### [2026-10-07] — Ciclo 13: Responsividade Dinâmica & Recolhimento do Menu Lateral
+- **Tipo:** UI/UX / Responsividade / Frontend Core
+- **Arquivos:** `Auto_Gestao_de_Direcao_v0.1/styles.css`, `Auto_Gestao_de_Direcao_v0.1/admin-styles.css`, `Auto_Gestao_de_Direcao_v0.1/app.js`, `Auto_Gestao_de_Direcao_v0.1/index.html`, `Auto_Gestao_de_Direcao_v0.1/student-portal.js`, `Auto_Gestao_de_Direcao_v0.1/admin-portal.js`.
+- **Descrição:**
+  - **Menu Lateral Recolhível no Desktop/Notebook:**
+    - Implementação do estado `.sidebar.collapsed` (largura de 68px) e `body.sidebar-collapsed`, liberando espaço horizontal amplo para a visualização do simulador, tabelas e relatórios.
+    - Modo trilho de ícones (icon rail) com tooltips nativos preservando acesso a todas as opções.
+    - Botão de alternância direto no cabeçalho do menu (`◀ / ▶`) e botão hambúrguer (`☰`) sempre acessível na barra superior.
+    - Persistência automática do estado de recolhimento no `localStorage ('agd-sidebar-collapsed')`.
+    - Disparo de evento `resize` para redimensionamento em tempo real do canvas do simulador.
+  - **Responsividade Fluida para Tablet e Mobile (<= 900px):**
+    - Menu lateral gaveta off-canvas com transição suave e elevação com sombra.
+    - Inclusão de backdrop semi-transparente com desfoque (`.sidebar-backdrop`) que recolhe o menu com um toque fora.
+    - Fechamento/recolhimento automático ao selecionar qualquer item ou rota de navegação dentro do menu.
+
+---
+
 ## 7. Próximos Aperfeiçoamentos Planejados (Roadmap)
 
 1. **Sincronização Bidirecional das Aulas e Agenda com o Banco Neon:**
@@ -325,4 +344,5 @@ graph TD
 ---
 
 *Fim do Dossiê · Última atualização: 07/10/2026.*
+
 

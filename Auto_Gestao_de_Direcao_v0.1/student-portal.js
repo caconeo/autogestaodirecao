@@ -18,10 +18,13 @@
     const medals = p.medals || [];
 
     return `
-      <a class="brand" href="#aluno-home" id="studentBrandLink">
-        <span class="brand-mark">AG</span>
-        <span><b>auto gestão</b><small>de direção</small></span>
-      </a>
+      <div class="brand-bar">
+        <a class="brand" href="#aluno-home" id="studentBrandLink">
+          <span class="brand-mark">AG</span>
+          <span><b>auto gestão</b><small>de direção</small></span>
+        </a>
+        <button class="sidebar-collapse-btn" title="Recolher / Expandir menu" aria-label="Recolher menu">◀</button>
+      </div>
 
       <div class="student-profile-card">
         <div class="student-avatar-wrap">

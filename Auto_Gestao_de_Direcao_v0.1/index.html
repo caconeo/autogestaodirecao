@@ -15,15 +15,18 @@
     <aside class="sidebar" id="sidebar">
       <!-- Modo INSTRUTOR (padrão) -->
       <div id="instructorSidebar">
-        <a class="brand" href="#inicio"><span class="brand-mark">AG</span><span><b>auto gestão</b><small>de direção</small></span></a>
+        <div class="brand-bar">
+          <a class="brand" href="#inicio"><span class="brand-mark">AG</span><span><b>auto gestão</b><small>de direção</small></span></a>
+          <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" title="Recolher / Expandir menu" aria-label="Recolher menu">◀</button>
+        </div>
         <div class="org-picker"><label for="orgSelect">ORGANIZAÇÃO ATIVA</label><select id="orgSelect"></select></div>
         <nav class="nav-list" aria-label="Navegação principal">
-          <button class="nav-item active" data-view="inicio"><span>◫</span> Visão geral</button>
-          <button class="nav-item" data-view="agenda"><span>▦</span> Agenda <em id="navTodayCount">3</em></button>
-          <button class="nav-item" data-view="alunos"><span>◎</span> Alunos</button>
-          <button class="nav-item" data-view="veiculos"><span>▱</span> Veículos</button>
-          <button class="nav-item" data-view="financeiro"><span>◉</span> Financeiro</button>
-          <button class="nav-item" data-view="relatorios"><span>▥</span> Relatórios</button>
+          <button class="nav-item active" data-view="inicio" title="Visão geral"><span>◫</span> Visão geral</button>
+          <button class="nav-item" data-view="agenda" title="Agenda"><span>▦</span> Agenda <em id="navTodayCount">3</em></button>
+          <button class="nav-item" data-view="alunos" title="Alunos"><span>◎</span> Alunos</button>
+          <button class="nav-item" data-view="veiculos" title="Veículos"><span>▱</span> Veículos</button>
+          <button class="nav-item" data-view="financeiro" title="Financeiro"><span>◉</span> Financeiro</button>
+          <button class="nav-item" data-view="relatorios" title="Relatórios"><span>▥</span> Relatórios</button>
         </nav>
         <div class="sidebar-bottom">
           <div class="user-chip">
@@ -32,12 +35,12 @@
             <span class="dots">···</span>
           </div>
           <!-- Link para área do aluno -->
-          <button class="student-area-link" id="openStudentAreaBtn">
+          <button class="student-area-link" id="openStudentAreaBtn" title="Área do Aluno">
             <span class="student-area-icon">◉</span>
             Área do Aluno
           </button>
           <!-- Link para Painel Master Super Admin -->
-          <button class="student-area-link" id="openAdminMasterBtn" style="margin-top:6px;background:rgba(0, 229, 153, 0.12);color:#00e599;border:1px solid rgba(0, 229, 153, 0.35);">
+          <button class="student-area-link" id="openAdminMasterBtn" title="Painel Super Admin" style="margin-top:6px;background:rgba(0, 229, 153, 0.12);color:#00e599;border:1px solid rgba(0, 229, 153, 0.35);">
             <span class="student-area-icon">⚡</span>
             Painel Super Admin
           </button>
@@ -52,9 +55,12 @@
       <div id="adminSidebar" hidden></div>
     </aside>
 
+    <!-- Backdrop escuro para fechar menu no mobile/tablet ao clicar fora -->
+    <div id="sidebarBackdrop" class="sidebar-backdrop" aria-hidden="true"></div>
+
     <main class="main-area">
       <header class="topbar">
-        <button id="menuToggle" class="icon-btn mobile-menu" aria-label="Abrir menu">☰</button>
+        <button id="menuToggle" class="icon-btn menu-toggle-btn" aria-label="Recolher ou expandir menu" title="Recolher / Expandir menu">☰</button>
         <div class="breadcrumb">
           <span id="modeLabel">Operação</span>
           <span>/</span>

@@ -93,7 +93,60 @@
   document.querySelector('#orgSelect').addEventListener('change',e=>{db.activeOrg=e.target.value;query='';render()});
   document.querySelector('#appContent').addEventListener('input',e=>{if(e.target.id==='searchInput'){query=e.target.value;let pos=e.target.selectionStart;render();let n=document.querySelector('#searchInput');n.focus();n.setSelectionRange(pos,pos)}});
   document.querySelector('#dismissBanner').addEventListener('click',()=>{db.banner=false;render()});
-  document.querySelector('#menuToggle').addEventListener('click',()=>document.querySelector('#sidebar').classList.toggle('open'));
+  // ── CONTROLE DO MENU LATERAL (RECOLHER / EXPANDIR / RESPONSIVIDADE) ──
+  const isMobile = () => window.innerWidth <= 900;
+  const sidebarEl = document.querySelector('#sidebar');
+  const backdropEl = document.querySelector('#sidebarBackdrop');
+  const menuToggleEl = document.querySelector('#menuToggle');
+
+  if (!isMobile() && localStorage.getItem('agd-sidebar-collapsed') === 'true') {
+    document.body.classList.add('sidebar-collapsed');
+    if (sidebarEl) sidebarEl.classList.add('collapsed');
+  }
+
+  function toggleSidebar() {
+    if (isMobile()) {
+      const isOpen = sidebarEl.classList.toggle('open');
+      if (backdropEl) backdropEl.classList.toggle('active', isOpen);
+    } else {
+      const isCollapsed = sidebarEl.classList.toggle('collapsed');
+      document.body.classList.toggle('sidebar-collapsed', isCollapsed);
+      localStorage.setItem('agd-sidebar-collapsed', isCollapsed ? 'true' : 'false');
+      window.dispatchEvent(new Event('resize'));
+    }
+  }
+
+  function closeMobileSidebar() {
+    if (sidebarEl && sidebarEl.classList.contains('open')) {
+      sidebarEl.classList.remove('open');
+      if (backdropEl) backdropEl.classList.remove('active');
+    }
+  }
+
+  if (menuToggleEl) menuToggleEl.addEventListener('click', toggleSidebar);
+  if (backdropEl) backdropEl.addEventListener('click', closeMobileSidebar);
+
+  document.addEventListener('click', e => {
+    const collapseBtn = e.target.closest('.sidebar-collapse-btn');
+    if (collapseBtn) { toggleSidebar(); return; }
+    if (isMobile()) {
+      const navTarget = e.target.closest('#sidebar button, #sidebar a');
+      if (navTarget && !navTarget.classList.contains('sidebar-collapse-btn')) {
+        closeMobileSidebar();
+      }
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    if (!isMobile()) {
+      if (backdropEl) backdropEl.classList.remove('active');
+      if (sidebarEl) sidebarEl.classList.remove('open');
+      if (localStorage.getItem('agd-sidebar-collapsed') === 'true') {
+        document.body.classList.add('sidebar-collapsed');
+        if (sidebarEl) sidebarEl.classList.add('collapsed');
+      }
+    }
+  });
   document.querySelector('#todayBtn').addEventListener('click',()=>{view='agenda';db.selectedDay=today;db.month=new Date().getMonth();db.year=new Date().getFullYear();render()});
   document.querySelector('#aboutBtn').addEventListener('click',()=>toast('Demonstração local: use somente dados fictícios. A integração oficial ainda não está habilitada.'));
   render();
