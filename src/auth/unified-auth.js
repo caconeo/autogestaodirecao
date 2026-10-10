@@ -107,7 +107,7 @@ const AGDUnifiedAuth = (() => {
       if (adminSidebar) adminSidebar.hidden = true;
       if (openAdminBtn) openAdminBtn.style.display = 'none';
 
-      // Assegura conta do aluno para o simulador
+      // Assegura a conta usada pelo Portal do Aluno
       let stdAccount = typeof AGDStudent !== 'undefined' ? AGDStudent.currentAccount() : null;
       if (!stdAccount && typeof AGDStudent !== 'undefined') {
         const demoEmail = 'aluno@demo.com';
@@ -122,11 +122,7 @@ const AGDUnifiedAuth = (() => {
       }
       return;
     }
-
-    // Se não for aluno, destruir simulador se estiver ativo e reativar instrutor/admin
-    if (typeof AGDSimulator !== 'undefined' && AGDSimulator.destroy) {
-      AGDSimulator.destroy();
-    }
+    // Se não for aluno, reativar instrutor/admin
     if (stdSidebar) { stdSidebar.hidden = true; stdSidebar.innerHTML = ''; }
 
     // ⚡ PAPEL: SUPER ADMINISTRADOR MASTER
@@ -270,7 +266,7 @@ const AGDUnifiedAuth = (() => {
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;">
               <button class="btn-fast-login" data-email="aluno@demo.com" style="background:#f0f9ff;border:1px solid #b9e6fe;color:#026aa2;padding:10px;border-radius:8px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;text-align:left;">
                 <span style="font-size:16px;">🎓</span>
-                <div><b>Aluno</b><small style="display:block;font-size:10px;opacity:.8;">Portal e Simulador</small></div>
+                <div><b>Aluno</b><small style="display:block;font-size:10px;opacity:.8;">Portal do Aluno</small></div>
               </button>
 
               <button class="btn-fast-login" data-email="cassio@autogestaodirecao.com.br" style="background:#f6fbf7;border:1px solid #cce5d5;color:#1e5e39;padding:10px;border-radius:8px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;cursor:pointer;text-align:left;">

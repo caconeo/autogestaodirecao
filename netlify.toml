@@ -1,18 +1,9 @@
 [build]
-  publish = "Auto_Gestao_de_Direcao_v0.1"
+  command = "npm run build"
+  publish = "public"
   functions = "netlify/functions"
 
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
-
-[[redirects]]
-  from = "/Auto_Gestao_de_Direcao_v0.1"
-  to = "/"
-  status = 301
-
-[[redirects]]
-  from = "/Auto_Gestao_de_Direcao_v0.1/*"
-  to = "/:splat"
-  status = 301

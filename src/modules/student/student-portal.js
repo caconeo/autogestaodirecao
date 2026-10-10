@@ -49,9 +49,6 @@
         <button class="nav-item active" data-student-view="aluno-home">
           <span>◫</span> Início
         </button>
-        <button class="nav-item" data-student-view="simulador">
-          <span>◉</span> Simulador
-        </button>
         <button class="nav-item" data-student-view="progresso">
           <span>▦</span> Meu Progresso
         </button>
@@ -113,7 +110,6 @@
           <p>Continue praticando e evoluindo suas habilidades de condução.</p>
         </div>
         <div class="head-actions">
-          <button class="btn primary" data-student-view="simulador">▶ Praticar agora</button>
         </div>
       </div>
 
@@ -144,7 +140,7 @@
         <div class="card">
           <div class="card-head">
             <div><h2>Simulador de Direção</h2><p>Treine manobras em ambiente virtual seguro</p></div>
-            <button class="text-action" data-student-view="simulador">Acessar →</button>
+            <span class="badge">Produto separado</span>
           </div>
           <div class="student-scenario-list">
             ${renderScenarioCards(completed)}
@@ -189,7 +185,7 @@
           </div>
           <div class="scenario-status">
             ${done ? '<span class="badge done">Concluído</span>' :
-              active ? `<button class="btn primary" data-student-view="simulador" data-select-scenario="${s.id}" style="font-size:10px;padding:6px 10px">Praticar</button>` :
+              active ? '<span class="badge">Produto separado</span>' :
               '<span class="badge" style="background:#2a4036;color:#5a7a6a;font-size:9px">Em breve</span>'}
           </div>
         </div>`;
@@ -326,7 +322,7 @@
           <div class="auth-logo">
             <div class="brand-mark" style="width:52px;height:52px;border-radius:16px;background:#d5efdf;color:#165839;display:grid;place-items:center;font-weight:800;font-size:18px;letter-spacing:-1px;margin:0 auto 18px">AG</div>
             <h2>Área do Aluno</h2>
-            <p>Acesse sua conta para praticar no simulador</p>
+            <p>Acesse sua conta para acompanhar sua evolução</p>
           </div>
 
           <div class="auth-tabs">
@@ -389,383 +385,6 @@
   /* ══════════════════════════════════════════════
      3. TELA DO SIMULADOR
      ══════════════════════════════════════════════ */
-  function renderSimulatorPage() {
-    return `
-      <div class="page-head">
-        <div>
-          <div class="eyebrow">SIMULADOR INTERATIVO</div>
-          <h1 id="simPageTitle">Simulador de Direção</h1>
-          <p id="simPageSubtitle">Treine manobras e direção defensiva em ambiente visual interativo</p>
-        </div>
-        <div class="head-actions">
-          <button class="btn" id="simHelpBtn">Como usar</button>
-        </div>
-      </div>
-
-      <!-- Barra de Seleção de Cenários -->
-      <div class="sim-scenario-bar" id="simScenarioBar">
-        <button class="sim-scen-btn active" id="simBtnBaliza" data-scenario="baliza-basica">
-          🚗 Baliza Básica (Estacionamento)
-        </button>
-        <button class="sim-scen-btn" id="simBtnVias" data-scenario="direcao-vias">
-          🛣️ Direção em Vias & Distâncias
-        </button>
-        <button class="sim-scen-btn" id="simBtnCidade" data-scenario="cidade-ctb">
-          🏙️ Simulador Vida Real & CTB (Escola, Preferências, Trens & SAMU)
-        </button>
-      </div>
-
-      <!-- Painel de Parametrização das Situações Cotidianas CTB -->
-      <div class="sim-situation-panel" id="simSituationPanel" style="display:none">
-        <div class="sim-sit-top">
-          <div class="sim-sit-header">
-            <span class="sim-sit-title">🚦 SITUAÇÕES E VIAS COTIDIANAS (CTB BRASIL)</span>
-            <span class="sim-sit-subtitle">Velocidades reais, preferências, cruzamentos e eventos surpresa de emergência:</span>
-          </div>
-          <div class="sim-sit-actions">
-            <span class="sim-random-badge" id="simRandomBadge" title="O sistema aciona SAMU 192, Polícia e Trem aleatoriamente durante o percurso">
-              🎲 Aleatório: SAMU • Polícia • Trem
-            </span>
-            <button class="sim-trigger-btn red" id="simTriggerAmbulance" title="Ambulância SAMU pedindo passagem com sirene (Art. 189 CTB)">
-              🚨 Chamar SAMU 192
-            </button>
-            <button class="sim-trigger-btn emerald" id="simTriggerPolice" title="Viatura Policial / PRF com sirene de emergência (Art. 189 CTB)">
-              🚓 Acionar Polícia
-            </button>
-            <button class="sim-trigger-btn blue" id="simTriggerTrain" title="Trem de carga cruzando a passagem de nível com parada obrigatória (Art. 212 CTB)">
-              🚂 Acionar Trem
-            </button>
-            <button class="sim-trigger-btn amber" id="simToggleWarden" title="Alternar entre guarda apitando parada e travessia autônoma de crianças">
-              👮 Alternar Guarda
-            </button>
-          </div>
-        </div>
-        <div class="sim-sit-pills">
-          <button class="sim-sit-pill active" id="simSitSchool" data-stage="escolar">
-            🏫 Zona 30 (Escola 30 km/h)
-          </button>
-          <button class="sim-sit-pill" id="simSitColetora" data-stage="coletora">
-            🛑 Bairro / PARE R-1 (40 km/h)
-          </button>
-          <button class="sim-sit-pill" id="simSitArterial" data-stage="arterial">
-            🏙️ Avenida Arterial (60 km/h)
-          </button>
-          <button class="sim-sit-pill" id="simSitRail" data-stage="ferrovia">
-            🚂 Passagem de Nível (40 km/h)
-          </button>
-          <button class="sim-sit-pill" id="simSitHighway" data-stage="rodovia">
-            🛣️ Rodovia BR-101 (100 km/h)
-          </button>
-        </div>
-      </div>
-
-      <!-- Barra de Fiscalização da Lei de Trânsito (CTB & CNH Oficial) -->
-      <div class="sim-ctb-bar" id="simCtbBar">
-        <div class="sim-cnh-status">
-          <div class="sim-cnh-label">CARTEIRA DE HABILITAÇÃO (CNH)</div>
-          <div class="sim-cnh-meter">
-            <span class="sim-cnh-pts" id="simCnhPoints">0 / 40 pts</span>
-            <div class="sim-cnh-track">
-              <div class="sim-cnh-fill" id="simCnhFill" style="width:0%"></div>
-            </div>
-            <span class="sim-cnh-badge regular" id="simCnhBadge">CNH REGULAR</span>
-          </div>
-        </div>
-
-        <div class="sim-fines-total">
-          <div class="sim-fines-label">MULTAS ACUMULADAS</div>
-          <div class="sim-fines-val" id="simFinesVal">R$ 0,00</div>
-        </div>
-
-        <div class="sim-officer-widget" id="simOfficerWidget" title="Agente da Autoridade de Trânsito">
-          <div class="sim-officer-avatar">👮</div>
-          <div class="sim-officer-info">
-            <span class="sim-officer-name">Agente Silva</span>
-            <span class="sim-officer-status"><span class="sim-pulse-dot"></span> Fiscalização Ativa</span>
-          </div>
-        </div>
-
-        <button class="sim-ait-btn" id="simOpenAitBtn">
-          📜 Infrações (AITs) <span class="sim-ait-badge" id="simAitBadgeCount">0</span>
-        </button>
-      </div>
-
-      <!-- Alerta Interativo do Agente de Trânsito (Policial Legislativo) -->
-      <div class="sim-officer-dialog" id="simOfficerDialog" style="display:none">
-        <div class="sim-officer-dialog-inner">
-          <div class="sim-officer-big-avatar">
-            <div class="sim-officer-sprite">👮‍♂️</div>
-            <div class="sim-police-lights">
-              <span class="p-light blue"></span>
-              <span class="p-light red"></span>
-            </div>
-          </div>
-          <div class="sim-officer-speech">
-            <div class="sim-officer-header">
-              <span class="sim-officer-title">AGENTE DE TRÂNSITO — FISCALIZAÇÃO CTB</span>
-              <span class="sim-officer-time" id="simOfficerTime">Agora</span>
-            </div>
-            <div class="sim-officer-msg" id="simOfficerMsg">
-              Atenção, condutor! Mantenha a velocidade e a sinalização conforme o Código de Trânsito Brasileiro.
-            </div>
-            <div class="sim-officer-fine-card" id="simOfficerFineCard" style="display:none">
-              <div class="sim-fine-art" id="simFineArt">Art. 196 do CTB</div>
-              <div class="sim-fine-data">
-                <span id="simFineSeverity">Gravidade: Grave</span> • 
-                <span id="simFinePts">+5 pontos na CNH</span> • 
-                <span id="simFinePrice">R$ 195,23</span>
-              </div>
-            </div>
-          </div>
-          <button class="sim-officer-close-btn" id="simOfficerCloseBtn" title="Dispensar aviso">✕</button>
-        </div>
-      </div>
-
-      <div class="simulator-shell" id="simulatorShell">
-        <!-- HUD Topo -->
-        <div class="sim-hud-top">
-          <!-- Cenário Baliza HUD -->
-          <div class="sim-scenario-info" id="simBalizaHudInfo">
-            <span class="sim-scenario-badge" id="simScenarioBadge">BALIZA BÁSICA</span>
-            <span class="sim-mode-badge" id="simModeBadge">TRAJETÓRIA</span>
-          </div>
-
-          <!-- Cenário Vias & Cidade HUD -->
-          <div class="sim-road-hud" id="simRoadHud" style="display:none">
-            <div class="sim-speed-sign" id="simSpeedSign" title="Limite regulamentado da via">
-              <span id="simSpeedSignNum">40</span>
-              <small>km/h</small>
-            </div>
-            <div class="sim-road-info">
-              <span class="sim-road-badge" id="simRoadBadge">🏙️ CENTRO URBANO</span>
-              <div class="sim-stage-timer-wrap">
-                <div class="sim-stage-timer-track"><div class="sim-stage-timer-fill" id="simRoadTimerFill" style="width:100%"></div></div>
-                <span id="simRoadTimerText">Próximo trecho em: <b>20s</b></span>
-              </div>
-            </div>
-            <div class="sim-status-pill green" id="simStatusPill">
-              🟢 SINAL VERDE — Distância Segura
-            </div>
-          </div>
-
-          <!-- Seletor de Modo da Baliza -->
-          <div class="sim-mode-switcher" id="simBalizaModeSwitcher">
-            <button class="sim-mode-tab active" id="simTabTrajectory" data-mode="trajectory" title="Posicione o carro e desenhe o trajeto com o mouse">
-              ✏️ Trajetória (Mouse)
-            </button>
-            <button class="sim-mode-tab" id="simTabGuided" data-mode="guided" title="Passo a passo com pedais e volante">
-              🧭 Modo Guiado
-            </button>
-            <button class="sim-mode-tab" id="simTabFree" data-mode="free" title="Manobra livre sem assistência">
-              🎮 Volante Livre
-            </button>
-          </div>
-
-          <div class="sim-score-area">
-            <span id="simScoreLabel">Score</span>
-            <b id="simScore">—</b>
-          </div>
-          <div class="sim-controls-top">
-            <div class="sim-drive-mode-group" id="simDriveModeGroup">
-              <button class="sim-drive-mode-btn" id="simBtnDriveUser" data-drive-mode="manual" title="Você assume o controle dos pedais e volante">
-                🚗 Conduzir
-              </button>
-              <button class="sim-drive-mode-btn active demo-active" id="simBtnDriveDemo" data-drive-mode="demo" title="A IA assume a direção respeitando 100% das leis e ritos do CTB">
-                🤖 Demo (IA)
-              </button>
-            </div>
-            <button class="sim-btn-sm" id="simDemoBtn" style="display:none">▶ Demo</button>
-            <button class="sim-btn-sm" id="simResetBtn" title="Reiniciar simulação">↺ Reiniciar</button>
-          </div>
-        </div>
-
-        <!-- Barra de Câmeras (Mobile-Friendly) -->
-        <div class="sim-view-mode-bar" id="simViewModeBar">
-          <span class="sim-view-mode-label">Câmeras:</span>
-          <div class="sim-view-mode-buttons">
-            <button class="sim-view-btn active" id="simViewBtnTop" data-view-mode="top" title="Visão Superior ampla (Padrão)">
-              🗺️ Visão Superior
-            </button>
-            <button class="sim-view-btn" id="simViewBtnBoth" data-view-mode="both" title="Ambas as Visões">
-              📱 Ambas as Visões
-            </button>
-            <button class="sim-view-btn" id="simViewBtnDriver" data-view-mode="driver" title="Visão do Condutor com minimapa">
-              🚗 Visão do Condutor
-            </button>
-          </div>
-        </div>
-
-        <!-- Viewports com classes de layout dinâmicas -->
-        <div class="sim-views layout-top" id="simViewsContainer">
-          <!-- VIEW B — Top View (Prioritária no Mobile) -->
-          <div class="sim-view-top cursor-grab" id="simViewTop">
-            <div class="sim-view-label">VISÃO SUPERIOR (TOP VIEW)</div>
-            <canvas id="topCanvas"></canvas>
-          </div>
-
-          <!-- VIEW A — Visão do Condutor -->
-          <div class="sim-view-driver" id="simViewDriver">
-            <div class="sim-view-label">VISÃO DO CONDUTOR</div>
-            <canvas id="driverCanvas"></canvas>
-            <div class="sim-mirrors">
-              <div class="sim-mirror left" id="mirrorLeft" title="Retrovisor Esquerdo"><canvas id="mirrorLeftCanvas"></canvas></div>
-              <div class="sim-mirror center" id="mirrorCenter" title="Retrovisor Central Interno"><canvas id="mirrorCenterCanvas"></canvas></div>
-              <div class="sim-mirror right" id="mirrorRight" title="Retrovisor Direito"><canvas id="mirrorRightCanvas"></canvas></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Painel de Instrução com Ações -->
-        <div class="sim-instruction-panel" id="simInstPanel">
-          <div class="sim-inst-icon" id="simInstIcon">💡</div>
-          <div class="sim-inst-text" id="simInstText">
-            <b>Passo 1:</b> Arraste o carro com o mouse até a lateral do <b>Veículo A</b> para alinhar os retrovisores.
-          </div>
-          <div class="sim-inst-actions" id="simInstActions">
-            <button class="sim-act-btn primary" id="simExecuteDrawBtn" style="display:none">▶ Executar Manobra</button>
-            <button class="sim-act-btn" id="simClearDrawBtn" style="display:none">↺ Redesenhar</button>
-            <button class="sim-act-btn" id="simRealignBtn" style="display:none">↔ Reposicionar</button>
-          </div>
-        </div>
-
-        <!-- Controles do Veículo -->
-        <div class="sim-controls-bar">
-          <!-- Volante -->
-          <div class="sim-steering-wrap">
-            <div class="sim-ctrl-label">VOLANTE</div>
-            <div class="sim-steering" id="simSteering">
-              <canvas id="steeringCanvas" width="90" height="90"></canvas>
-            </div>
-            <div class="sim-steering-angle" id="simSteeringAngle">0°</div>
-          </div>
-
-          <!-- Marcha -->
-          <div class="sim-gear-wrap">
-            <div class="sim-ctrl-label">MARCHA</div>
-            <div class="sim-gear-selector">
-              <button class="sim-gear-btn active" id="gearD" data-gear="D">D</button>
-              <button class="sim-gear-btn" id="gearN" data-gear="N">N</button>
-              <button class="sim-gear-btn" id="gearR" data-gear="R">R</button>
-            </div>
-          </div>
-
-          <!-- Setas (Sinalização para Mudança de Faixa - CTB Art. 196) -->
-          <div class="sim-signals-wrap" id="simSignalsWrap">
-            <div class="sim-ctrl-label">SETAS (SINALIZAÇÃO)</div>
-            <div class="sim-signal-btns">
-              <button class="sim-signal-btn" id="simTurnLeftBtn" title="Seta para a esquerda (Tecla Q ou A)">
-                <span class="sim-signal-icon">⇦</span> ESQ
-              </button>
-              <button class="sim-signal-btn" id="simTurnRightBtn" title="Seta para a direita (Tecla E ou D)">
-                DIR <span class="sim-signal-icon">⇨</span>
-              </button>
-            </div>
-            <div class="sim-signal-status" id="simSignalStatus">Seta Desligada</div>
-          </div>
-
-          <!-- Acelerador / Freio -->
-          <div class="sim-pedals">
-            <div class="sim-ctrl-label">VELOCIDADE</div>
-            <div class="sim-speed-display" id="simSpeedDisplay">0 km/h</div>
-            <div class="sim-pedal-btns">
-              <button class="sim-pedal-btn accel" id="pedalAccel" aria-label="Acelerar">▲</button>
-              <button class="sim-pedal-btn brake" id="pedalBrake" aria-label="Frear">■</button>
-            </div>
-          </div>
-
-          <!-- Distâncias -->
-          <div class="sim-distances">
-            <div class="sim-ctrl-label">DISTÂNCIAS</div>
-            <div class="sim-dist-grid">
-              <div class="sim-dist-item"><span class="dist-dir">↑</span><span id="distFront">—</span></div>
-              <div class="sim-dist-item"><span class="dist-dir">↓</span><span id="distRear">—</span></div>
-              <div class="sim-dist-item"><span class="dist-dir">←</span><span id="distLeft">—</span></div>
-              <div class="sim-dist-item"><span class="dist-dir">→</span><span id="distRight">—</span></div>
-            </div>
-          </div>
-
-          <!-- Botão avançar -->
-          <div class="sim-action-wrap">
-            <button class="btn primary sim-next-btn" id="simNextBtn" hidden>Próximo →</button>
-            <button class="btn sim-finish-btn" id="simFinishBtn" hidden>Ver resultado</button>
-          </div>
-        </div>
-
-        <!-- Overlay de Resultado -->
-        <div class="sim-result-overlay" id="simResultOverlay" style="display:none" hidden>
-          <div class="sim-result-card">
-            <div class="sim-result-title" id="simResultTitle">Manobra concluída!</div>
-            <div class="sim-result-score" id="simResultScore">—</div>
-            <div class="sim-result-detail" id="simResultDetail"></div>
-            <div class="sim-result-actions">
-              <button class="btn" id="simTryAgainBtn">↺ Tentar novamente</button>
-              <button class="btn primary" id="simSaveResultBtn">✓ Salvar resultado</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Modal de Autos de Infração de Trânsito (AITs) -->
-        <div class="sim-ait-modal-overlay" id="simAitModal" style="display:none">
-          <div class="sim-ait-modal-card">
-            <div class="sim-ait-modal-header">
-              <div class="sim-ait-modal-title">
-                <span class="sim-ait-modal-icon">📜</span>
-                <div>
-                  <h3>Registro de Infrações — CTB Oficial</h3>
-                  <p>Fiscalização pelo Policial Legislativo / Agente de Trânsito</p>
-                </div>
-              </div>
-              <button class="sim-ait-modal-close" id="simAitModalCloseBtn">✕</button>
-            </div>
-            <div class="sim-ait-modal-summary" id="simAitSummary">
-              <div class="sim-ait-stat">
-                <span class="stat-lbl">PONTOS CNH</span>
-                <b class="stat-val" id="simModalCnhPts">0 / 40</b>
-              </div>
-              <div class="sim-ait-stat">
-                <span class="stat-lbl">TOTAL MULTAS</span>
-                <b class="stat-val red" id="simModalTotalFines">R$ 0,00</b>
-              </div>
-              <div class="sim-ait-stat">
-                <span class="stat-lbl">STATUS DA CNH</span>
-                <b class="stat-val green" id="simModalCnhStatus">REGULAR</b>
-              </div>
-            </div>
-            <div class="sim-ait-list" id="simAitList">
-              <div class="sim-ait-empty">
-                <span>🛡️ Nenhuma infração registrada nesta sessão. Condução exemplar conforme o CTB!</span>
-              </div>
-            </div>
-            <div class="sim-ait-modal-actions">
-              <button class="btn" id="simAitClearBtn">↺ Zerar Histórico</button>
-              <button class="btn primary" id="simAitOkBtn">Fechar</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Modal de Acidente Gravíssimo com Trem (Vidas Podem Ter Sido Perdidas) -->
-        <div class="sim-fatal-modal" id="simTrainFatalModal" style="display:none">
-          <div class="sim-fatal-box">
-            <div class="sim-fatal-badge">⚠️ ACIDENTE GRAVÍSSIMO</div>
-            <h2 class="sim-fatal-title">🚨 VIDAS PODEM TER SIDO PERDIDAS!</h2>
-            <p class="sim-fatal-text">
-              O veículo invadiu a linha férrea e foi colhido pelo trem de carga a plena velocidade! A desaceleração de centenas de toneladas leva centenas de metros e o impacto é devastador.
-            </p>
-            <div class="sim-fatal-ctb">
-              <b>Art. 212 do CTB:</b> Deixar de parar o veículo antes de transpor a linha férrea (Passagem de Nível). Infração Gravíssima (Penalidade: Multa + Suspensão da CNH + Risco Letal).
-            </div>
-            <div class="sim-fatal-timer" id="simFatalCountdown">Reiniciando o simulador em 4 segundos...</div>
-            <button class="sim-fatal-btn" id="simFatalRestartBtn">↺ Reiniciar Agora</button>
-          </div>
-        </div>
-      </div>
-
-      <p class="hint section-spacer" style="margin-top:14px">
-        ⓘ Controles: setas do teclado ← → para virar, ↑ para acelerar, ↓ para frear/ré. Toque na tela também é suportado.
-      </p>
-    `;
-  }
-
   /* ══════════════════════════════════════════════
      4. EXPORTAÇÃO PÚBLICA
      ══════════════════════════════════════════════ */
@@ -785,7 +404,6 @@
     renderStudentSidebar,
     renderStudentHome,
     renderStudentLogin,
-    renderSimulatorPage,
     renderProgress,
     renderAchievements,
     renderScenarioCards,

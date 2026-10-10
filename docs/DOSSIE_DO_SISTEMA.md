@@ -58,7 +58,7 @@ graph TD
 ## 3. Detalhamento dos Componentes e Subsistemas
 
 ### 3.1. Módulo 1 — Gestão Operacional & Financeira (Painel do Instrutor / CFC)
-- **Localização:** `Auto_Gestao_de_Direcao_v0.1/app.js`, `Auto_Gestao_de_Direcao_v0.1/domain.js`, `Auto_Gestao_de_Direcao_v0.1/styles.css`.
+- **Localização:** `src/modules/instructor/app.js`, `src/core/domain.js`, `public/css/styles.css`.
 - **Capacidades Operacionais:**
   - **Multi-tenancy:** Alternância de tenant em tempo real (`org-auto` para autônomos e `org-cfc` para autoescolas), isolando registros por `organizacao_id`.
   - **Agenda de Aulas:** Validação algorítmica de conflitos de horário com restrição semiaberta `[início, fim)`, impedindo choques simultâneos de aluno, instrutor ou veículo.
@@ -68,7 +68,7 @@ graph TD
   - **Exportação:** Relatórios com gráficos mensais e exportação de grade de aulas para CSV.
 
 ### 3.2. Módulo 2 — Portal do Aluno & Gamificação Pedagógica
-- **Localização:** `Auto_Gestao_de_Direcao_v0.1/student-portal.js`, `Auto_Gestao_de_Direcao_v0.1/student-auth.js`, `Auto_Gestao_de_Direcao_v0.1/student-app.js`, `Auto_Gestao_de_Direcao_v0.1/student-styles.css`.
+- **Localização:** `src/modules/student/student-portal.js`, `src/auth/student-auth.js`, `src/modules/student/student-app.js`, `public/css/student-styles.css`.
 - **Capacidades:**
   - **Autenticação:** Cadastro e login com credenciais de acesso, gerenciamento de sessão ativa e conta demo integrada (`aluno@demo.com`).
   - **Motor de XP & Níveis:** Conversão contínua de pontos de experiência adquiridos nas práticas (`xpForLevel = level * 200`).
@@ -76,7 +76,7 @@ graph TD
   - **Painel de Conquistas:** Medalhas por metas pedagógicas cumpridas e registro de cenários concluídos com telemetria da sessão.
 
 ### 3.3. Módulo 3 — Simulador Gamificado 2D de Trânsito & Motor de Física CTB
-- **Localização:** `Auto_Gestao_de_Direcao_v0.1/simulator-engine.js`, pastas de sons `/sons/` e testes em `/tests/`.
+- **Localização:** `simulator/src/simulator-engine.js`, áudios em `simulator/public/sons/` e auditorias em `simulator/tests/`.
 - **Capacidades e Física:**
   - **Dois Modos de Condução:**
     - *Modo IA Autônoma (Default):* Conduz o veículo automaticamente respeitando rigorosamente o CTB — para antes de faixas de pedestres, aguarda semáforos, dá preferência a pedestres e veículos prioritários, aciona setas antes das manobras e posiciona-se no bolsão de motos.
@@ -93,7 +93,7 @@ graph TD
   - **Áudio Espacial Estéreo 3D:** Motor Web Audio API que calcula a distância euclidiana e o ângulo do veículo emissor em relação ao condutor, modulando volume proporcional e pan estéreo (esquerda/direita) dos efeitos sonoros (`ambulance.mp3`, `police.mp3`, `train.mp3`).
 
 ### 3.4. Módulo 4 — Modelo de Dados e Persistência
-- **Localização:** `Auto_Gestao_de_Direcao_v0.1/MODELO_DADOS.md`, `neon.ts`.
+- **Localização:** `docs/MODELO_DADOS.md`, `neon.ts`.
 - **Status:** Operando em LocalStorage no protótipo frontend; estrutura relacional planejada e pronta para persistência em PostgreSQL (Neon).
 - **Entidades Definidas:**
   1. `organizacao`: ID, tipo (AUTONOMO/CFC), nome, fuso, ativa.
@@ -112,7 +112,7 @@ graph TD
   14. `auditoria`: ID, organizacao_id, ator_id, entidade, entidade_id, acao, instante, metadados_minimos.
 
 ### 3.5. Módulo 5 — Infraestrutura de Nuvem, Deploy e Integrações
-- **Deploy de Produção:** Netlify configurado via `netlify.toml` publicando `Auto_Gestao_de_Direcao_v0.1` e redirecionando rotas legadas, com fallback no `index.html` da raiz.
+- **Deploy de Produção:** Netlify configurado via `netlify.toml` publicando `public` após copiar `src` na etapa de build, com fallback no `index.html` da raiz.
 - **Backend Serverless Neon (PostgreSQL):**
   - CLI Neon v8.0.12 instalada e homologada.
   - `neon.ts` configurado para declarar `auth: true` (Managed Better Auth) e `dataApi: true`.
@@ -126,7 +126,7 @@ graph TD
 
 | Arquivo / Diretório | Propósito e Responsabilidade |
 | :--- | :--- |
-| `DOSSIE_DO_SISTEMA.md` | **Dossiê mestre de documentação**, inventário geral e cronologia viva de aperfeiçoamentos do sistema. |
+| `docs/DOSSIE_DO_SISTEMA.md` | **Dossiê mestre de documentação**, inventário geral e cronologia viva de aperfeiçoamentos do sistema. |
 | `index.html` | Página raiz de inicialização e redirecionamento suave para a versão ativa do protótipo no Netlify/servidor web. |
 | `netlify.toml` | Configuração de publicação estática e regras de redirecionamento 301 do Netlify. |
 | `neon.ts` | Arquivo de Infraestrutura como Código (IaC) do Neon, declarando serviços de Auth, Data API e políticas de branch. |
@@ -138,25 +138,25 @@ graph TD
 | `Prompt_Master_Auto_Gestao_de_Direcao.md` | Especificação fundamental de negócio, visão do fundador e requisitos originais da plataforma. |
 | `sons/` | Repositório de arquivos de áudio de alta fidelidade: `ambulance.mp3`, `police.mp3`, `train.mp3`. |
 | `.agents/skills/` | Pacotes de habilidades instaladas da Neon para o assistente de IA. |
-| `Auto_Gestao_de_Direcao_v0.1/index.html` | Aplicação web principal (Interface do Aluno, Instrutor, Simulador e Gestão). |
-| `Auto_Gestao_de_Direcao_v0.1/app.js` | Lógica central da interface operacional de gestão (painéis, agendas, cadastros, finanças). |
-| `Auto_Gestao_de_Direcao_v0.1/domain.js` | Módulo com funções puras de regra de negócio (conflitos de agenda, cálculo de saldo, rateios). |
-| `Auto_Gestao_de_Direcao_v0.1/styles.css` | Folha de estilos moderna do painel gerencial operacional. |
-| `Auto_Gestao_de_Direcao_v0.1/student-portal.js` | Interface visual do Portal do Aluno (cards de progresso, habilidades, conquistas). |
-| `Auto_Gestao_de_Direcao_v0.1/student-auth.js` | Sistema de autenticação, sessões, hashing e persistência de dados do aluno. |
-| `Auto_Gestao_de_Direcao_v0.1/student-app.js` | Controlador de inicialização e transições de tela do estudante. |
-| `Auto_Gestao_de_Direcao_v0.1/student-styles.css` | Design system gamificado do Portal do Aluno. |
-| `Auto_Gestao_de_Direcao_v0.1/simulator-engine.js` | Motor de física 2D, renderizador Canvas, inteligência artificial CTB e retrovisores. |
-| `Auto_Gestao_de_Direcao_v0.1/test-domain.cjs` | Testes automatizados de unidade para validação das regras de negócio do domínio. |
-| `Auto_Gestao_de_Direcao_v0.1/tests/` | Bateria de testes automatizados do simulador (`simulator-ctb-audit.cjs`, `test-demo-mode.cjs`, `test-continuous-demo.cjs`). |
-| `Auto_Gestao_de_Direcao_v0.1/sons/` | Cópia sincronizada dos recursos de áudio espacial para o contexto da pasta v0.1. |
+| `public/index.html` | Aplicação web principal (Interface do Aluno, Instrutor, Simulador e Gestão). |
+| `src/modules/instructor/app.js` | Lógica central da interface operacional de gestão (painéis, agendas, cadastros, finanças). |
+| `src/core/domain.js` | Módulo com funções puras de regra de negócio (conflitos de agenda, cálculo de saldo, rateios). |
+| `public/css/styles.css` | Folha de estilos moderna do painel gerencial operacional. |
+| `src/modules/student/student-portal.js` | Interface visual do Portal do Aluno (cards de progresso, habilidades, conquistas). |
+| `src/auth/student-auth.js` | Sistema de autenticação, sessões, hashing e persistência de dados do aluno. |
+| `src/modules/student/student-app.js` | Controlador de inicialização e transições de tela do estudante. |
+| `public/css/student-styles.css` | Design system gamificado do Portal do Aluno. |
+| `simulator/src/simulator-engine.js` | Motor de física 2D, renderizador Canvas, inteligência artificial CTB e retrovisores. |
+| `tests/test-domain.cjs` | Testes automatizados de unidade para validação das regras de negócio do domínio. |
+| `simulator/tests/` | Bateria de testes automatizados do simulador (`simulator-ctb-audit.cjs`, `test-demo-mode.cjs`, `test-continuous-demo.cjs`). |
+| `simulator/public/sons/` | Cópia sincronizada dos recursos de áudio espacial para o contexto da pasta v0.1. |
 | `Auto_Gestao_de_Direcao_v0.1/README.md` | Guia de execução local rápida do protótipo v0.1. |
-| `Auto_Gestao_de_Direcao_v0.1/PROGRESSO.md` | Diário dos primeiros ciclos de validação de aceitação do MVP. |
-| `Auto_Gestao_de_Direcao_v0.1/DECISOES.md` | Registro de decisões técnicas de arquitetura (ADRs D-001 a D-005). |
-| `Auto_Gestao_de_Direcao_v0.1/ESCOPO_MVP.md` | Definição formal do escopo da primeira fatia de produto. |
-| `Auto_Gestao_de_Direcao_v0.1/MODELO_DADOS.md` | Modelo de dados conceitual e regras de integridade do banco relacional. |
-| `Auto_Gestao_de_Direcao_v0.1/PESQUISA_INTEGRACOES.md` | Documento de pesquisa sobre integração com catálogo de serviços oficiais do Denatran/Senatran. |
-| `Auto_Gestao_de_Direcao_v0.1/ORIGEM_IDEIA.md` | Contexto de origem do projeto e histórico inicial. |
+| `docs/PROGRESSO.md` | Diário dos primeiros ciclos de validação de aceitação do MVP. |
+| `docs/DECISOES.md` | Registro de decisões técnicas de arquitetura (ADRs D-001 a D-005). |
+| `docs/ESCOPO_MVP.md` | Definição formal do escopo da primeira fatia de produto. |
+| `docs/MODELO_DADOS.md` | Modelo de dados conceitual e regras de integridade do banco relacional. |
+| `docs/PESQUISA_INTEGRACOES.md` | Documento de pesquisa sobre integração com catálogo de serviços oficiais do Denatran/Senatran. |
+| `docs/ORIGEM_IDEIA.md` | Contexto de origem do projeto e histórico inicial. |
 
 ---
 
@@ -182,7 +182,7 @@ graph TD
 
 ### [2026-09-27] — Ciclo 1: Concepção do MVP Operacional e Regras de Domínio
 - **Tipo:** Criação / Core Feature
-- **Arquivos:** `Auto_Gestao_de_Direcao_v0.1/app.js`, `domain.js`, `test-domain.cjs`, `styles.css`, `index.html`.
+- **Arquivos:** `src/modules/instructor/app.js`, `domain.js`, `test-domain.cjs`, `styles.css`, `index.html`.
 - **Descrição:**
   - Primeira entrega executável demonstrativa da gestão operacional de aulas práticas para autônomos e CFCs.
   - Implementação das funções puras de domínio: detecção de sobreposição de horários, cálculo de saldo aberto, consumo de pacote e divisão multi-tenant.
@@ -249,7 +249,7 @@ graph TD
 
 ### [2026-10-06] — Ciclo 8: Quarteirões Urbanos, Bolsão de Motos e Retrovisores Funcionais
 - **Tipo:** Geometria Viária / Visão do Condutor
-- **Arquivos:** `simulator-engine.js`, `Auto_Gestao_de_Direcao_v0.1/index.html`.
+- **Arquivos:** `simulator-engine.js`, `public/index.html`.
 - **Descrição:**
   - Expansão do traçado para quarteirões urbanos realistas com cruzamentos perpendiculares.
   - Introdução do bolsão de motos (área de espera exclusiva entre carros e semáforo, conforme art. do CTB).
@@ -271,7 +271,7 @@ graph TD
 - **Tipo:** Infraestrutura / Deploy
 - **Arquivos:** `netlify.toml`, `index.html` (raiz).
 - **Descrição:**
-  - Criação do arquivo de publicação do Netlify (`netlify.toml`) apontando para `Auto_Gestao_de_Direcao_v0.1`.
+  - Criação do arquivo de publicação do Netlify (`netlify.toml`) apontando para `public`.
   - Adição de regras de redirecionamento 301 para harmonizar URLs diretas.
   - Criação do `index.html` raiz com auto-redirecionamento dinâmico preservando query params e hashes.
   - Sincronização e alinhamento completo com o repositório remoto GitHub (`caconeo/autogestaodirecao`).
@@ -287,7 +287,7 @@ graph TD
   - Instalação e configuração do servidor Neon MCP (`neon mcp --oauth -y`) no Antigravity IDE.
   - Criação do arquivo de declaração de infraestrutura como código `neon.ts` habilitando `auth: true` (Managed Better Auth) e `dataApi: true`.
   - Mapeamento e teste do endpoint REST da Neon Data API (`https://ep-lucky-river-b6lcmj3l.apirest.c-2.sa-east-1.aws.neon.tech/neondb/rest/v1`).
-  - Criação formal deste Dossiê Mestre de Documentação do Sistema (`DOSSIE_DO_SISTEMA.md`).
+  - Criação formal deste Dossiê Mestre de Documentação do Sistema (`docs/DOSSIE_DO_SISTEMA.md`).
 
 ---
 
@@ -295,7 +295,7 @@ graph TD
 
 ### [2026-10-07] — Ciclo 12: Parametrização do Banco de Dados Neon & Interface do Administrador Master
 - **Tipo:** Backend Serverless / Banco Relacional / Frontend Super Admin
-- **Arquivos:** `netlify/functions/admin.mjs`, `Auto_Gestao_de_Direcao_v0.1/admin-portal.js`, `Auto_Gestao_de_Direcao_v0.1/admin-styles.css`, `Auto_Gestao_de_Direcao_v0.1/index.html`, `scripts/init-db.mjs`, `scripts/verify-db.mjs`, `netlify.toml`, `package.json`, `.env.example`.
+- **Arquivos:** `netlify/functions/admin.mjs`, `src/modules/admin/admin-portal.js`, `public/css/admin-styles.css`, `public/index.html`, `scripts/init-db.mjs`, `scripts/verify-db.mjs`, `netlify.toml`, `package.json`, `.env.example`.
 - **Descrição:**
   - **Parametrização do Banco no Neon (PostgreSQL 18.6):**
     - Criação e homologação de 14 tabelas relacionais completas: `admin_usuario`, `plano_assinatura`, `organizacao`, `usuario`, `convite_aluno`, `aluno`, `veiculo`, `aula`, `pacote`, `conta_receber`, `pagamento`, `despesa`, `simulador_sessao`, `registro_auditoria`.
@@ -317,7 +317,7 @@ graph TD
 
 ### [2026-10-07] — Ciclo 13: Responsividade Dinâmica & Recolhimento do Menu Lateral
 - **Tipo:** UI/UX / Responsividade / Frontend Core
-- **Arquivos:** `Auto_Gestao_de_Direcao_v0.1/styles.css`, `Auto_Gestao_de_Direcao_v0.1/admin-styles.css`, `Auto_Gestao_de_Direcao_v0.1/app.js`, `Auto_Gestao_de_Direcao_v0.1/index.html`, `Auto_Gestao_de_Direcao_v0.1/student-portal.js`, `Auto_Gestao_de_Direcao_v0.1/admin-portal.js`.
+- **Arquivos:** `public/css/styles.css`, `public/css/admin-styles.css`, `src/modules/instructor/app.js`, `public/index.html`, `src/modules/student/student-portal.js`, `src/modules/admin/admin-portal.js`.
 - **Descrição:**
   - **Menu Lateral Recolhível no Desktop/Notebook:**
     - Implementação do estado `.sidebar.collapsed` (largura de 68px) e `body.sidebar-collapsed`, liberando espaço horizontal amplo para a visualização do simulador, tabelas e relatórios.
@@ -334,7 +334,7 @@ graph TD
 
 ### [2026-10-08] — Ciclo 14: Autenticação por Papel (RBAC) & Saída Fluida do Modo Aluno
 - **Tipo:** Autenticação / Controle de Acesso / Roteamento / UI
-- **Arquivos:** `Auto_Gestao_de_Direcao_v0.1/unified-auth.js`, `Auto_Gestao_de_Direcao_v0.1/student-app.js`, `Auto_Gestao_de_Direcao_v0.1/student-portal.js`, `Auto_Gestao_de_Direcao_v0.1/admin-portal.js`, `Auto_Gestao_de_Direcao_v0.1/app.js`, `Auto_Gestao_de_Direcao_v0.1/index.html`.
+- **Arquivos:** `src/auth/unified-auth.js`, `src/modules/student/student-app.js`, `src/modules/student/student-portal.js`, `src/modules/admin/admin-portal.js`, `src/modules/instructor/app.js`, `public/index.html`.
 - **Descrição:**
   - **Correção da Saída do Modo Aluno:**
     - Resolvido o problema de travamento no Modo Aluno através da exportação global `window.AGDApp = { render, setView, getDb, showInstructor }`.
@@ -353,10 +353,10 @@ graph TD
 
 ### [2026-10-08] — Ciclo 15: Preservação de Áudio Real por Tipo no Simulador
 - **Tipo:** Áudio / Motor do Simulador / Correção de Efeitos Sonoros
-- **Arquivos:** `Auto_Gestao_de_Direcao_v0.1/simulator-engine.js`, `.gitignore`, `DOSSIE_DO_SISTEMA.md`.
+- **Arquivos:** `simulator/src/simulator-engine.js`, `.gitignore`, `docs/DOSSIE_DO_SISTEMA.md`.
 - **Descrição:**
   - **Mapeamento Explícito de Arquivos em `sons/`:**
-    - Definição do dicionário `SOUND_PATHS` vinculando o tipo de veículo/evento diretamente aos arquivos em `Auto_Gestao_de_Direcao_v0.1/sons/`:
+    - Definição do dicionário `SOUND_PATHS` vinculando o tipo de veículo/evento diretamente aos arquivos em `simulator/public/sons/`:
       - `ambulance` → `sons/ambulance.mp3` (sirene oficial SAMU 192)
       - `police` → `sons/police.mp3` (sirene de viatura policial / PRF)
       - `train` → `sons/train.mp3` (apito e som característico de cruzamento rodoferroviário)

@@ -1,5 +1,5 @@
 /* Auto Gestão de Direção — student-app.js
-   Controlador do Portal do Aluno: roteamento, autenticação e integração com o simulador */
+   Controlador do Portal do Aluno: roteamento e autenticação */
 
 (() => {
 
@@ -65,10 +65,6 @@
   }
 
   function exitStudentMode() {
-    /* destruir simulador se ativo */
-    if (typeof AGDSimulator !== 'undefined' && AGDSimulator.destroy) {
-      try { AGDSimulator.destroy(); } catch (err) { console.warn(err); }
-    }
 
     studentMode = false;
     if (typeof AGDStudent !== 'undefined' && AGDStudent.logout) {
@@ -142,14 +138,8 @@
     const crumb = document.getElementById('crumb');
     if (!content || !account) return;
 
-    /* destruir simulador se trocar de view */
-    if (studentView !== 'simulador' && typeof AGDSimulator !== 'undefined') {
-      AGDSimulator.destroy();
-    }
-
     const labels = {
       'aluno-home': 'Início',
-      'simulador': 'Simulador',
       'progresso': 'Meu Progresso',
       'conquistas': 'Conquistas'
     };
@@ -166,9 +156,6 @@
       case 'aluno-home':
         html = AGDPortal.renderStudentHome(account);
         break;
-      case 'simulador':
-        html = AGDPortal.renderSimulatorPage();
-        break;
       case 'progresso':
         html = AGDPortal.renderProgress(account);
         break;
@@ -180,13 +167,6 @@
     }
 
     content.innerHTML = html;
-
-    /* iniciar simulador após DOM ser inserido */
-    if (studentView === 'simulador') {
-      requestAnimationFrame(() => {
-        if (typeof AGDSimulator !== 'undefined') AGDSimulator.init();
-      });
-    }
   }
 
   /* ══════════════════════════════════════════════
@@ -296,11 +276,7 @@
     const viewEl = e.target.closest('[data-student-view]');
     if (viewEl) {
       studentView = viewEl.dataset.studentView;
-      const targetScenario = viewEl.dataset.selectScenario;
       renderStudentView();
-      if (targetScenario && typeof AGDSimulator !== 'undefined' && AGDSimulator.switchScenario) {
-        setTimeout(() => AGDSimulator.switchScenario(targetScenario), 80);
-      }
       document.querySelector('#sidebar').classList.remove('open');
       return;
     }
@@ -309,24 +285,6 @@
     if (e.target.closest('#studentLogoutBtn') || e.target.closest('#studentBackToAppBtn') || e.target.closest('#topbarExitStudentBtn')) {
       exitStudentMode();
       return;
-    }
-  });
-
-  /* ══════════════════════════════════════════════
-     EVENTO: resultado do simulador salvo
-     ══════════════════════════════════════════════ */
-
-  document.addEventListener('agd:sim-result-saved', e => {
-    const detail = e.detail;
-    const xp = detail?.xp || 0;
-    toast(`✓ Resultado salvo! +${xp} XP ganhos.`);
-
-    /* atualizar sidebar do aluno com novos dados */
-    const account = AGDStudent.currentAccount();
-    if (account) {
-      const stdSidebar = document.getElementById('studentSidebar');
-      if (stdSidebar) stdSidebar.innerHTML = AGDPortal.renderStudentSidebar(account);
-      bindStudentEvents();
     }
   });
 

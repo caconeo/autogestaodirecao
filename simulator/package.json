@@ -1,0 +1,12 @@
+{
+  "name": "auto-gestao-direcao-simulator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Simulador de direção e auditor automatizado de conformidade CTB",
+  "scripts": {
+    "audit:ctb": "node tests/simulator-ctb-audit.cjs",
+    "test:demo": "node tests/test-demo-mode.cjs",
+    "test:continuous": "node tests/test-continuous-demo.cjs",
+    "test": "npm run test:demo && npm run test:continuous"
+  }
+}

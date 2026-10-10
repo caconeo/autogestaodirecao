@@ -47,7 +47,7 @@ function makeSandbox() {
 
 function loadEngine() {
   const ctx = makeSandbox();
-  const code = fs.readFileSync(path.join(__dirname, '..', 'simulator-engine.js'), 'utf8');
+  const code = fs.readFileSync(path.join(__dirname, '..', 'src', 'simulator-engine.js'), 'utf8');
   vm.runInContext(code, ctx, { filename: 'simulator-engine.js' });
   return ctx.AGDSimulator;
 }

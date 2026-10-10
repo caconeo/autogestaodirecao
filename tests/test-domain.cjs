@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict');
-require('./domain.js');
+require('../src/core/domain.js');
 const {hasConflict,balance,recordPayment,consumePackage,byOrganization}=globalThis.AGD;
 const base={org:'org-1',student:'aluno-1',instructor:'instrutor-1',vehicle:'carro-1',start:'2026-09-26T09:00:00-03:00',end:'2026-09-26T10:00:00-03:00',status:'AGENDADA'};
 assert.equal(hasConflict([base],{...base,start:'2026-09-26T09:30:00-03:00',end:'2026-09-26T10:30:00-03:00'}),true,'deve bloquear sobreposição do mesmo recurso');

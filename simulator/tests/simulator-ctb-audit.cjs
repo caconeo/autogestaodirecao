@@ -4,7 +4,7 @@
    e verifica, quadro a quadro, se TODOS os personagens não controlados
    pelo aluno cumprem o Código de Trânsito Brasileiro.
 
-   Uso:  node tests/simulator-ctb-audit.cjs   (na pasta Auto_Gestao_de_Direcao_v0.1)
+   Uso:  npm run audit:ctb
    Saída: relatório por regra/cenário. Código de saída 1 se houver infração.
 
    Convenção de eixos do motor: o condutor (aluno) está em y = 0.
@@ -44,7 +44,7 @@ function makeSandbox() {
 
 function loadEngine() {
   const ctx = makeSandbox();
-  const code = fs.readFileSync(path.join(__dirname, '..', 'simulator-engine.js'), 'utf8');
+  const code = fs.readFileSync(path.join(__dirname, '..', 'src', 'simulator-engine.js'), 'utf8');
   vm.runInContext(code, ctx, { filename: 'simulator-engine.js' });
   return ctx.AGDSimulator;
 }

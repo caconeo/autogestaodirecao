@@ -46,7 +46,7 @@ function makeSandbox() {
 }
 
 const ctx = makeSandbox();
-let code = fs.readFileSync(path.join(__dirname, '..', 'simulator-engine.js'), 'utf8');
+let code = fs.readFileSync(path.join(__dirname, '..', 'src', 'simulator-engine.js'), 'utf8');
 
 // Hook issueAit to capture all infractions
 code = code.replace(
