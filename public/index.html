@@ -8,8 +8,11 @@
   <link rel="stylesheet" href="css/styles.css">
   <link rel="stylesheet" href="css/student-styles.css">
   <link rel="stylesheet" href="css/admin-styles.css">
+  <link rel="stylesheet" href="css/finance-live.css">
+  <link rel="stylesheet" href="css/accessibility.css">
 </head>
 <body>
+  <a class="skip-link" href="#appContent">Pular para o conteúdo principal</a>
   <div class="app-shell">
     <!-- SIDEBAR — conteúdo injetado pelo JS dependendo do modo (instrutor vs aluno) -->
     <aside class="sidebar" id="sidebar">
@@ -80,12 +83,15 @@
   <div id="toastRoot" class="toast-root" aria-live="polite"></div>
 
   <!-- Scripts — ordem importa -->
-  <script src="../src/core/domain.js?v=3.0"></script>
-  <script src="../src/auth/student-auth.js?v=3.0"></script>
-  <script src="../src/modules/student/student-portal.js?v=3.0"></script>
-  <script src="../src/modules/instructor/app.js?v=3.0"></script>
-  <script src="../src/modules/student/student-app.js?v=3.0"></script>
-  <script src="../src/modules/admin/admin-portal.js?v=3.1"></script>
-  <script src="../src/auth/unified-auth.js?v=3.1"></script>
+  <script src="src/core/domain.js?v=3.0"></script>
+  <script src="src/auth/student-auth.js?v=3.0"></script>
+  <script src="src/modules/student/student-portal.js?v=3.0"></script>
+  <script src="src/modules/instructor/app.js?v=3.0"></script>
+  <script src="src/modules/student/student-app.js?v=3.0"></script>
+  <script src="src/modules/admin/admin-portal.js?v=3.1"></script>
+  <script src="src/auth/unified-auth.js?v=3.1"></script>
+  <script src="src/auth/real-auth.js?v=1.0"></script>
+  <script src="src/modules/instructor/finance-live.js?v=1.0"></script>
+  <script src="src/core/accessibility.js?v=1.0"></script>
 </body>
 </html>

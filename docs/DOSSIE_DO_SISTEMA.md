@@ -302,7 +302,7 @@ graph TD
     - Carga de dados inicial (seed) com planos de assinatura (Autônomo Starter, Autônomo Pro, CFC Essencial, CFC Enterprise), contas operacionais piloto e alunos de exemplo.
   - **Backend Serverless (Netlify Functions):**
     - Implementação de `netlify/functions/admin.mjs` utilizando o driver oficial `@neondatabase/serverless`.
-    - Endpoints para checagem de latência/saúde do banco (`health`), inspeção de schemas e contagens (`tables`), resumo executivo (`dashboard`), gestão de assinaturas (`subscriptions`, `update-subscription`), cadastro de novos assinantes (`create-user`), emissão de convites (`invites`, `create-invite`) e console de consulta segura (`query-inspector`).
+    - Endpoints para checagem de latência/saúde do banco (`health`), inspeção de schemas e contagens (`tables`), resumo executivo (`dashboard`), gestão de assinaturas (`subscriptions`, `update-subscription`), emissão de convites (`invites`, `create-invite`); o console SQL arbitrário foi removido por segurança.
     - Configuração no `netlify.toml` com rota reversa `/api/*` apontando para `/.netlify/functions/:splat`.
   - **Interface do Administrador Master:**
     - Dashboard completo de governança com MRR estimado, contagem de assinaturas por status e acompanhamento de frotas/alunos.

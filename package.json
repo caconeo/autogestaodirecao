@@ -1,15 +1,16 @@
 {
-  "name": "auto-gestao-direcao",
-  "version": "1.0.0",
-  "description": "Auto Gestao de Direcao - Sistema de Gestao com Neon Postgres",
-  "type": "module",
-  "scripts": {
-    "build": "node scripts/build.mjs",
-    "db:init": "node scripts/init-db.mjs",
-    "test": "node tests/test-domain.cjs"
-  },
-  "dependencies": {
-    "@neondatabase/serverless": "^0.10.4",
-    "dotenv": "^16.4.7"
-  }
+    "name":  "auto-gestao-direcao",
+    "version":  "1.0.0",
+    "description":  "Auto Gestao de Direcao - Sistema de Gestao com Neon Postgres",
+    "type":  "module",
+    "scripts":  {
+                    "build":  "node scripts/build.mjs",
+                    "db:init":  "node scripts/init-db.mjs",
+                    "test":  "node tests/test-domain.cjs \u0026\u0026 node --test tests/*.test.mjs",
+                    "db:migrate":  "node scripts/migrate-all.mjs"
+                },
+    "dependencies":  {
+                         "@neondatabase/serverless":  "^0.10.4",
+                         "dotenv":  "^16.4.7"
+                     }
 }

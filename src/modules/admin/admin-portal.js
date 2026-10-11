@@ -5,7 +5,6 @@
 
 const AGDAdmin = (() => {
   const API_URL = '/api/admin';
-  const NEON_CONN_STR = 'postgresql://neondb_owner:npg_nuB0OPoE6qFD@ep-lucky-river-b6lcmj3l-pooler.c-2.sa-east-1.aws.neon.tech/autogestaodirecao?sslmode=require&channel_binding=require';
 
   let currentTab = 'dashboard';
   let cachedDashboard = null;
@@ -30,9 +29,16 @@ const AGDAdmin = (() => {
     const query = typeof action === 'string' ? `action=${action}` : '';
     const url = `${API_URL}?${query}`;
     try {
+      const session = typeof AGDUnifiedAuth !== 'undefined' ? AGDUnifiedAuth.getSession() : null;
+      const accessToken = session?.accessToken;
+      const requestHeaders = {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+      };
+      if (accessToken) requestHeaders.Authorization = `Bearer ${accessToken}`;
       const res = await fetch(url, {
-        headers: { 'Content-Type': 'application/json' },
-        ...options
+        ...options,
+        headers: requestHeaders
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
@@ -40,8 +46,12 @@ const AGDAdmin = (() => {
       }
       return await res.json();
     } catch (err) {
-      console.warn(`[AGDAdmin] Falha ao comunicar com ${url}, usando fallback demonstrativo:`, err.message);
-      return fallbackData(action, options);
+      const isLocalDemo = window.location.protocol === 'file:' || ['localhost', '127.0.0.1'].includes(window.location.hostname);
+      if (isLocalDemo) {
+        console.warn(`[AGDAdmin] API indisponível em ambiente local; usando dados demonstrativos:`, err.message);
+        return fallbackData(action, options);
+      }
+      throw err;
     }
   }
 
@@ -546,46 +556,15 @@ const AGDAdmin = (() => {
     return `
       <div class="admin-page-head">
         ${renderNeonStatusBar()}
-
         <div class="db-inspector-card">
-          <h2 style="margin:0 0 6px 0;font-size:20px;display:flex;align-items:center;gap:10px;">
-            <span>⚡</span> Console de Inspeção SQL — Neon Postgres
-          </h2>
+          <h2 style="margin:0 0 6px 0;font-size:20px;">Console SQL desativado</h2>
           <p style="margin:0;color:var(--admin-text-secondary);font-size:13px;">
-            Execute consultas <code>SELECT</code> diretamente contra o cluster para validar tabelas e dados em tempo real.
+            Consultas arbitrárias foram removidas da aplicação. Use somente endpoints autenticados e escopados por organização.
           </p>
-
-          <div class="sql-console-area">
-            <textarea id="sqlQueryInput" class="sql-editor-textarea" placeholder="SELECT * FROM organizacao LIMIT 10;">SELECT * FROM organizacao LIMIT 10;</textarea>
-
-            <div class="sql-buttons-bar">
-              <button id="btnRunQuery" class="btn-neon">
-                ▶ Executar Consulta
-              </button>
-              <button class="btn-admin-soft btn-sql-shortcut" data-sql="SELECT * FROM plano_assinatura;">
-                planos
-              </button>
-              <button class="btn-admin-soft btn-sql-shortcut" data-sql="SELECT id, nome, email, status FROM usuario;">
-                usuarios
-              </button>
-              <button class="btn-admin-soft btn-sql-shortcut" data-sql="SELECT id, nome, email, status, xp_total FROM aluno;">
-                alunos
-              </button>
-              <button class="btn-admin-soft btn-sql-shortcut" data-sql="SELECT id, nome_aluno, status, token_convite FROM convite_aluno;">
-                convites
-              </button>
-              <button class="btn-admin-soft btn-sql-shortcut" data-sql="SELECT table_name FROM information_schema.tables WHERE table_schema='public';">
-                tabelas_public
-              </button>
-            </div>
-
-            <div id="sqlQueryResult" class="sql-result-view" style="display:none;"></div>
-          </div>
         </div>
       </div>
     `;
   }
-
   // Renderizador Geral do Painel
   function renderView() {
     const content = document.getElementById('appContent');
@@ -626,15 +605,6 @@ const AGDAdmin = (() => {
         renderView();
       };
     });
-
-    // Copiar String de Conexão
-    const copyConnBtn = document.getElementById('copyNeonConnBtn');
-    if (copyConnBtn) {
-      copyConnBtn.onclick = () => {
-        navigator.clipboard.writeText(NEON_CONN_STR);
-        toast('String de Conexão Neon copiada para a área de transferência!');
-      };
-    }
 
     // Atualizar Dados / DB
     const refreshBtn = document.getElementById('refreshAdminDataBtn');
@@ -758,78 +728,10 @@ const AGDAdmin = (() => {
       btn.onclick = async (e) => {
         const tableName = e.currentTarget.dataset.table;
         toast(`Consultando registros de ${tableName}...`);
-        currentTab = 'sql-console';
-        renderView();
-        const input = document.getElementById('sqlQueryInput');
-        if (input) input.value = `SELECT * FROM "${tableName}" LIMIT 20;`;
-        executeCurrentQuery();
+        toast('Consulta direta removida por segurança.');
       };
     });
 
-    // Console SQL Executar
-    const btnRunQuery = document.getElementById('btnRunQuery');
-    if (btnRunQuery) {
-      btnRunQuery.onclick = () => executeCurrentQuery();
-    }
-
-    // Atalhos SQL
-    document.querySelectorAll('.btn-sql-shortcut').forEach(btn => {
-      btn.onclick = (e) => {
-        const sql = e.currentTarget.dataset.sql;
-        const input = document.getElementById('sqlQueryInput');
-        if (input) {
-          input.value = sql;
-          executeCurrentQuery();
-        }
-      };
-    });
-  }
-
-  // Executa query do console SQL
-  async function executeCurrentQuery() {
-    const input = document.getElementById('sqlQueryInput');
-    const resultBox = document.getElementById('sqlQueryResult');
-    if (!input || !resultBox) return;
-
-    const sqlText = input.value.trim();
-    if (!sqlText) return;
-
-    resultBox.style.display = 'block';
-    resultBox.innerHTML = '<div style="padding:16px;color:#8b9eb0;">Executando consulta no Neon PostgreSQL...</div>';
-
-    const res = await apiFetch('query-inspector', {
-      method: 'POST',
-      body: JSON.stringify({ sql: sqlText })
-    });
-
-    if (res.rows) {
-      if (res.rows.length === 0) {
-        resultBox.innerHTML = '<div style="padding:16px;color:#8b9eb0;">Nenhum registro retornado.</div>';
-        return;
-      }
-      const cols = Object.keys(res.rows[0]);
-      resultBox.innerHTML = `
-        <div style="padding:10px 14px;background:#0d1620;border-bottom:1px solid #162432;font-size:12px;color:#00e599;font-weight:700;">
-          Sucesso: ${res.total} linha(s) retornada(s)
-        </div>
-        <table class="admin-data-table">
-          <thead>
-            <tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr>
-          </thead>
-          <tbody>
-            ${res.rows.map(row => `
-              <tr>${cols.map(c => `<td>${typeof row[c] === 'object' && row[c] !== null ? JSON.stringify(row[c]) : (row[c] ?? '<i style="color:#666">null</i>')}</td>`).join('')}</tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-    } else {
-      resultBox.innerHTML = `
-        <div style="padding:16px;color:#ff6666;font-family:monospace;">
-          ❌ Erro ao executar consulta: ${res.error || 'Falha desconhecida'}
-        </div>
-      `;
-    }
   }
 
   // Modal para inspecionar schema da tabela

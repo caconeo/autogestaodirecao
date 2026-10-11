@@ -1,0 +1,190 @@
+:root {
+  --focus-ring: #005fcc;
+  --touch-target: 44px;
+}
+
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 10000;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #14261f;
+  font-weight: 700;
+  transform: translateY(-160%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--focus-ring) !important;
+  outline-offset: 3px !important;
+}
+
+:where(button, .btn, .small-action, .text-action, .nav-item, .student-area-link, .icon-btn) {
+  min-height: var(--touch-target);
+}
+
+.icon-btn,
+.sidebar-collapse-btn,
+.modal-head button,
+.prototype-banner button {
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+}
+
+.field label,
+.hint,
+.card-head p,
+.mini-row,
+.mini-row small,
+.lesson-meta,
+.lesson-time,
+.lesson-time small,
+.data-table td,
+.data-table th,
+.finance-sub,
+.split-line,
+.stat-foot,
+.stat-top,
+.side-agenda > p,
+.side-lesson small {
+  font-size: max(0.875rem, 14px);
+  line-height: 1.45;
+}
+
+.field input,
+.field select,
+.field textarea,
+.search input,
+.filter-select,
+.btn,
+.small-action,
+.text-action {
+  font-size: 1rem;
+}
+
+.field input,
+.field select,
+.search input,
+.filter-select {
+  min-height: var(--touch-target);
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .content {
+    padding-inline: 12px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .head-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .head-actions .btn,
+  .modal-foot .btn {
+    width: 100%;
+  }
+
+  .modal-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .modal {
+    width: 100%;
+    max-height: 94dvh;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .modal-foot {
+    display: grid;
+    grid-template-columns: 1fr;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  .data-table[data-mobile-cards='true'] {
+    min-width: 0;
+  }
+
+  .data-table[data-mobile-cards='true'] thead {
+    display: none;
+  }
+
+  .data-table[data-mobile-cards='true'],
+  .data-table[data-mobile-cards='true'] tbody,
+  .data-table[data-mobile-cards='true'] tr,
+  .data-table[data-mobile-cards='true'] td {
+    display: block;
+    width: 100%;
+  }
+
+  .data-table[data-mobile-cards='true'] tr {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .data-table[data-mobile-cards='true'] td {
+    display: grid;
+    grid-template-columns: minmax(110px, 42%) 1fr;
+    gap: 12px;
+    padding: 8px 0;
+    border: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .data-table[data-mobile-cards='true'] td::before {
+    content: attr(data-label);
+    color: #526158;
+    font-weight: 700;
+  }
+
+  .data-table[data-mobile-cards='true'] td[colspan] {
+    display: block;
+  }
+
+  .data-table[data-mobile-cards='true'] td[colspan]::before {
+    content: none;
+  }
+
+  .table-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (forced-colors: active) {
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline-color: Highlight !important;
+  }
+}
